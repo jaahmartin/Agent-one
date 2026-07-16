@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: agent-one
+    runtime: node
+    plan: free # ⚠️ met "starter" (~7$/mois) une fois Twilio réactivé, pour éviter la mise en veille
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false

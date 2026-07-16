@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Fenn — Agent One Dashboard</title>
+<link rel="icon" href="/dashboard-assets/favicon.ico" sizes="any">
+<link rel="icon" href="/dashboard-assets/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/dashboard-assets/apple-touch-icon.png">
+<link rel="manifest" href="/dashboard-assets/manifest.json">
+<style>
+  /* Identité de marque figée : ce dashboard ne doit JAMAIS s'adapter au mode sombre/clair
+     du système de l'utilisateur (téléphone, Mac, PC). Toutes les couleurs sont pilotées
+     uniquement par les variables ci-dessous, jamais par prefers-color-scheme. */
+  :root { color-scheme: light; }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap');
+
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --border: #D2D2D7;
+    --text: #1D1D1F; --text-secondary: #6E6E73;
+    --accent: #0C00B6; --accent-dark: #0A009B;
+    --accent-tint-10: #E7E6F8; --accent-tint-20: #CECCF0;
+    --positive: #229955; --positive-bg: #E3F6EA; --positive-border: #B7E4C7;
+    --alert: #D64545; --alert-bg: #FBEAEA;
+    --sp-1: 8px; --sp-2: 13px; --sp-3: 21px; --sp-4: 34px; --sp-5: 55px; --sp-6: 89px; --sp-7: 144px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .shell { display: flex; max-width: 1160px; margin: 0 auto; min-height: 100vh; }
+
+  .sidebar { width: 233px; flex-shrink: 0; padding: var(--sp-5) var(--sp-3); border-right: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-6); padding-left: var(--sp-1); cursor: pointer; }
+  .brand-mark { width: 34px; height: 34px; flex-shrink: 0; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 21px; letter-spacing: -0.01em; }
+
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2); border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: background 0.15s; }
+  .nav-item:hover { background: #EBEBED; }
+  .nav-item.active { background: var(--accent-tint-10); color: var(--accent); font-weight: 600; }
+  .nav-divider { height: 1px; background: var(--border); margin: var(--sp-4) 0; }
+  .badge-count { background: var(--alert); color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 100px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+  .mobile-topbar { display: none; align-items: center; justify-content: space-between; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 20; }
+  .mobile-topbar .brand { margin: 0; }
+  .hamburger { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .hamburger div { width: 16px; height: 2px; background: var(--text); position: relative; }
+  .hamburger div::before, .hamburger div::after { content: ""; position: absolute; width: 16px; height: 2px; background: var(--text); left: 0; }
+  .hamburger div::before { top: -5px; } .hamburger div::after { top: 5px; }
+
+  .mobile-menu { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 30; }
+  .mobile-menu-panel { background: var(--surface); width: 80%; max-width: 300px; height: 100%; padding: var(--sp-4) var(--sp-3); }
+  .mobile-menu .nav-item { font-size: 16px; padding: var(--sp-2); }
+
+  .main { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
+  .topbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); }
+  .status { display: flex; align-items: center; gap: var(--sp-1); font-size: 13px; color: var(--text-secondary); font-weight: 500; background: var(--surface); border: 1px solid var(--border); padding: 6px 13px; border-radius: 100px; }
+  .status-dot { width: 6px; height: 6px; background: var(--positive); border-radius: 50%; }
+
+  .greeting { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: var(--sp-2); }
+  .greeting-sub { color: var(--text-secondary); font-size: 15px; margin-bottom: var(--sp-3); }
+  .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
+
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; height: var(--sp-7); display: flex; flex-direction: column; justify-content: space-between; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
+  .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
+  .card:hover::after { opacity: 1; }
+  .card.positive { background: var(--positive-bg); border: 1px solid var(--positive-border); }
+  .card-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+  .card-value { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .card.positive .card-value { color: var(--positive); }
+  .card-delta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
+  .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
+  .panel-clickable:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
+  .panel-title { font-size: 15px; font-weight: 600; margin-bottom: var(--sp-3); display: flex; justify-content: space-between; align-items: center; gap: var(--sp-1); }
+  .panel-title-left { display: flex; align-items: center; gap: var(--sp-1); }
+  .panel-title.clickable { cursor: pointer; }
+  .panel-tag { font-size: 12px; font-weight: 500; color: var(--text-secondary); background: var(--bg); padding: 4px 10px; border-radius: 100px; }
+  .panel-tag.positive-tag { background: var(--positive-bg); color: var(--positive); }
+
+  .export-btn { background: none; border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 100px; cursor: pointer; position: relative; }
+  .export-btn:hover { background: var(--bg); }
+  .export-menu { display: none; position: absolute; right: 0; top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); z-index: 5; min-width: 140px; }
+  .export-menu.open { display: block; }
+  .export-menu div { padding: var(--sp-1) var(--sp-2); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .export-menu div:hover { background: var(--bg); }
+
+  .person-row { border-bottom: 1px solid var(--border); }
+  .person-row:last-child { border-bottom: none; }
+  .person-summary { display: flex; justify-content: space-between; align-items: center; padding: var(--sp-2) 0; cursor: pointer; gap: var(--sp-2); }
+  .callback-name-row { display: flex; align-items: center; gap: 7px; }
+  .callback-name { font-weight: 600; font-size: 15px; }
+  .callback-detail { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .dot-alert { width: 8px; height: 8px; background: var(--alert); border-radius: 50%; flex-shrink: 0; }
+  .chevron { color: var(--text-secondary); font-size: 12px; transition: transform 0.15s; margin-left: var(--sp-1); flex-shrink: 0; }
+  .chevron.open { transform: rotate(180deg); }
+
+  .recap { display: none; background: var(--bg); border-radius: 12px; padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); font-size: 13px; color: var(--text); line-height: 1.65; }
+  .recap.open { display: block; }
+  .recap b { font-weight: 600; }
+  .recap-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 8px; }
+
+  .btn-call { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 15px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .btn-call:hover { background: #EBEBED; }
+  .btn-confirm { background: var(--positive); color: #fff; border: none; padding: 8px 15px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .btn-confirm:hover { opacity: 0.9; }
+  .btn-trash { background: var(--surface); border: 1px solid var(--border); color: var(--alert); width: 34px; height: 34px; border-radius: 100px; cursor: pointer; font-size: 14px; }
+  .btn-trash:hover { background: var(--alert-bg); }
+  .action-row { display: flex; gap: 8px; margin-top: var(--sp-1); flex-wrap: wrap; }
+  .btn-add-ca { background: var(--accent); color: #fff; border: none; padding: 6px 14px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .btn-add-ca:hover { background: var(--accent-dark); }
+
+  .revenue-box { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+  .revenue-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .revenue-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .btn-primary { background: var(--accent); color: #FFFFFF; border: none; padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-outline-accent { background: var(--accent-tint-10); color: var(--accent); border: none; padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .btn-outline-accent:hover { background: var(--accent-tint-20); }
+
+  .sublist { display: none; margin-top: var(--sp-2); }
+  .sublist.open { display: block; }
+  .toggle-link { font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: var(--sp-1); }
+
+  .view { display: none; }
+  .view.active-view { display: block; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: var(--sp-4); }
+  .back-link:hover { color: var(--text); }
+  .detail-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-2); }
+  .detail-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: var(--sp-5); }
+
+  .settings-row { display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { color: var(--text-secondary); }
+  .settings-value { font-weight: 600; }
+
+  .add-form { display: none; margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+  .add-form.open { display: block; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .form-field input, .form-field select { font-family: inherit; font-size: 14px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--accent); }
+  .form-actions { display: flex; gap: var(--sp-2); }
+  .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text); padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+  .conv-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-4); background: var(--bg); padding: 4px; border-radius: 100px; width: fit-content; }
+  .conv-tab-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .conv-tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .funnel-period-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .funnel-period-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .relance-tab-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .relance-tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .conv-stat-row { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+  .conv-stat { flex: 1; min-width: 140px; }
+  .conv-stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .conv-stat-label { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+  .conv-pct { display: inline-flex; align-items: center; gap: 5px; background: var(--positive-bg); color: var(--positive); font-weight: 700; font-size: 13px; padding: 5px 12px; border-radius: 100px; margin-bottom: var(--sp-3); }
+
+  @media (max-width: 800px) {
+    .sidebar { display: none; }
+    .mobile-topbar { display: flex; }
+    .main { padding: var(--sp-4) var(--sp-3); }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .card:nth-child(5) { grid-column: 1 / -1; }
+    .greeting { font-size: 24px; }
+    .card { height: auto; min-height: 120px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-token="{{DASHBOARD_TOKEN}}">
+
+  <div class="mobile-topbar">
+    <div class="brand" onclick="showView('overview')">
+      <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="28" height="28"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+      <span class="brand-name" style="font-size:18px">Fenn</span>
+    </div>
+    <div class="hamburger" onclick="document.getElementById('mobileMenu').style.display='block'"><div></div></div>
+  </div>
+
+  <div class="mobile-menu" id="mobileMenu" onclick="if(event.target===this)this.style.display='none'">
+    <div class="mobile-menu-panel">
+      <div class="brand" onclick="showView('overview')"><span class="brand-name">Fenn</span></div>
+      <div class="nav">
+        <div class="nav-item active" data-view="overview" onclick="showView('overview')"><span>Vue d'ensemble</span></div>
+        <div class="nav-item" data-view="appointments" onclick="showView('appointments')"><span>Rendez-vous</span></div>
+        <div class="nav-item" data-view="callbacks" onclick="showView('callbacks')"><span>À rappeler</span><span class="badge-count cb-badge">{{CALLBACK_COUNT}}</span></div>
+        <div class="nav-item" data-view="revenue" onclick="showView('revenue')"><span>Chiffre d'affaires</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-view="settings" onclick="showView('settings')"><span>Réglages</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="sidebar">
+      <div class="brand" onclick="showView('overview')">
+        <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+        <span class="brand-name">Fenn</span>
+      </div>
+      <div class="nav">
+        <div class="nav-item active" data-view="overview" onclick="showView('overview')"><span>Vue d'ensemble</span></div>
+        <div class="nav-item" data-view="appointments" onclick="showView('appointments')"><span>Rendez-vous</span></div>
+        <div class="nav-item" data-view="callbacks" onclick="showView('callbacks')"><span>À rappeler</span><span class="badge-count cb-badge">{{CALLBACK_COUNT}}</span></div>
+        <div class="nav-item" data-view="revenue" onclick="showView('revenue')"><span>Chiffre d'affaires</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-view="settings" onclick="showView('settings')"><span>Réglages</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="topbar"><div class="status"><span class="status-dot"></span> Agent One — Actif</div></div>
+
+      <!-- VUE D'ENSEMBLE -->
+      <div class="view active-view" id="view-overview">
+        <div class="greeting">Bonjour {{CONTACT_FIRST_NAME}}</div>
+        <div class="greeting-sub">Voici votre activité récente.</div>
+        <div class="today-strip">● {{MISSED_CALLS_TODAY}} appel(s) manqué(s) relayé(s) par SMS aujourd'hui</div>
+
+        <div class="grid">
+          <div class="card" onclick="showView('sms')">
+            <div class="card-label">SMS envoyés</div>
+            <div>
+              <div class="card-value">{{SMS_TODAY}}</div>
+              <div class="card-delta">Semaine : {{SMS_WEEK}} · Mois : {{SMS_MONTH}}</div>
+              <svg width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none" style="margin-top:6px;"><polyline points="{{SMS_SPARKLINE_POINTS}}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>
+            </div>
+          </div>
+          <div class="card" onclick="showView('appointments')">
+            <div class="card-label">Rendez-vous confirmés</div>
+            <div><div class="card-value" id="rdv-count-value">{{RDV_MONTH_COUNT}}</div><div class="card-delta">Ce mois-ci</div></div>
+          </div>
+          <div class="card" onclick="showView('callbacks')">
+            <div class="card-label">Sans suite</div>
+            <div><div class="card-value cb-badge" id="sans-suite-value">{{CALLBACK_COUNT}}</div><div class="card-delta">À relancer, classés ou confirmés</div></div>
+          </div>
+          <div class="card positive" onclick="showView('conversion')">
+            <div class="card-label">Taux de conversion</div>
+            <div><div class="card-value">{{CONVERSION_RATE}}%</div><div class="card-delta">{{CONVERSION_DELTA}} vs mois dernier</div></div>
+          </div>
+          <div class="card" onclick="showView('relances')">
+            <div class="card-label">Relances</div>
+            <div><div class="card-value">{{REMINDERS_TODAY_COUNT}}</div><div class="card-delta">Programmées aujourd'hui</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title"><div class="panel-title-left">À rappeler <span class="badge-count cb-badge">{{CALLBACK_COUNT}}</span></div></div>
+          {{OVERVIEW_CALLBACK_ROWS}}
+        </div>
+
+        <div class="panel panel-clickable" onclick="showView('revenue')">
+          <div class="panel-title">Chiffre d'affaires généré</div>
+          <div class="revenue-box"><div class="revenue-value">{{REVENUE_TOTAL}}</div><button class="btn-primary" onclick="event.stopPropagation(); showView('revenue'); openAddCaForm();">Ajouter un chiffre d'affaire</button></div>
+        </div>
+      </div>
+
+      <!-- SMS ENVOYES -->
+      <div class="view" id="view-sms">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">SMS envoyés</div>
+        <div class="detail-sub">Chaque appel manqué déclenche un SMS immédiat — voici la preuve de rapidité et le volume traité.</div>
+
+        <div class="panel">
+          <div class="panel-title">Délai moyen d'envoi après le raccroché</div>
+          <div style="display:flex; align-items:baseline; gap:10px; margin-bottom: var(--sp-3);">
+            <div style="font-size:40px; font-weight:700; letter-spacing:-0.03em; color: var(--accent);">{{AVG_DELAY_LABEL}}</div>
+            <div class="settings-label">entre la fin de l'appel manqué et l'envoi du SMS</div>
+          </div>
+          <div class="settings-label" style="margin-bottom:8px; font-weight:600;">Exemples récents</div>
+          {{SMS_EXAMPLES_ROWS}}
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Volume de SMS envoyés</div>
+          <div class="settings-row"><span class="settings-label">Aujourd'hui</span><span class="settings-value">{{SMS_TODAY}} SMS</span></div>
+          <div class="settings-row"><span class="settings-label">Cette semaine</span><span class="settings-value">{{SMS_WEEK}} SMS</span></div>
+          <div class="settings-row"><span class="settings-label">Ce mois-ci</span><span class="settings-value">{{SMS_MONTH}} SMS</span></div>
+        </div>
+      </div>
+
+      <!-- TAUX DE CONVERSION -->
+      <div class="view" id="view-conversion">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Taux de conversion</div>
+        <div class="detail-sub">La preuve, en chiffres, que Agent One s'améliore en continu.</div>
+
+        <div class="conv-pct">{{CONVERSION_RATE}}% de taux de conversion actuel · {{CONVERSION_DELTA}} vs mois dernier</div>
+
+        <div class="panel">
+          <div class="panel-title">Entonnoir de conversion</div>
+          <div class="conv-tabs" style="margin-top:0;">
+            <button class="funnel-period-btn active" data-fperiod="today" onclick="showFunnelPeriod('today')">Aujourd'hui</button>
+            <button class="funnel-period-btn" data-fperiod="week" onclick="showFunnelPeriod('week')">Cette semaine</button>
+            <button class="funnel-period-btn" data-fperiod="month" onclick="showFunnelPeriod('month')">Ce mois-ci</button>
+          </div>
+          {{FUNNEL_CONTENT}}
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Évolution par période</div>
+          <div class="conv-tabs" style="margin-top:0;">
+            <button class="conv-tab-btn active" data-tab="today" onclick="showConvTab('today')">Aujourd'hui</button>
+            <button class="conv-tab-btn" data-tab="week" onclick="showConvTab('week')">Cette semaine</button>
+            <button class="conv-tab-btn" data-tab="month" onclick="showConvTab('month')">Ce mois-ci</button>
+          </div>
+          {{EVOLUTION_CONTENT}}
+        </div>
+      </div>
+
+      <!-- RENDEZ-VOUS -->
+      <div class="view" id="view-appointments">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Rendez-vous confirmés</div>
+        <div class="detail-sub"><span id="rdv-detail-count">{{RDV_MONTH_COUNT}}</span> rendez-vous confirmés ce mois-ci. Cliquez sur un nom pour voir le détail du chantier.</div>
+
+        <div class="panel">
+          <div class="panel-title"><div class="panel-title-left">Aujourd'hui <span class="panel-tag">{{RDV_TODAY_TAG_COUNT}}</span></div></div>
+          <div id="today-appt-list">{{RDV_TODAY_ROWS}}</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title clickable" onclick="togglePanelList('week-list','chev-week')">
+            <div class="panel-title-left">Cette semaine <span class="panel-tag">{{RDV_WEEK_TAG_COUNT}}</span></div>
+            <span class="chevron" id="chev-week">▾</span>
+          </div>
+          <div class="sublist" id="week-list">{{RDV_WEEK_ROWS}}</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title clickable" onclick="togglePanelList('month-list','chev-month')">
+            <div class="panel-title-left">Ce mois-ci <span class="panel-tag" id="rdv-month-tag">{{RDV_MONTH_TAG_COUNT}}</span></div>
+            <span class="chevron" id="chev-month">▾</span>
+          </div>
+          <div class="sublist" id="month-list">{{RDV_MONTH_ROWS}}</div>
+        </div>
+      </div>
+
+      <!-- A RAPPELER -->
+      <div class="view" id="view-callbacks">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">À rappeler <span class="badge-count cb-badge">{{CALLBACK_COUNT}}</span></div>
+        <div class="detail-sub">Prospects sans réponse confirmée. Cliquez sur un nom pour voir l'échange avant de rappeler.</div>
+        <div class="panel">{{CALLBACK_ROWS}}</div>
+      </div>
+
+      <!-- CHIFFRE D'AFFAIRES -->
+      <div class="view" id="view-revenue">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Chiffre d'affaires</div>
+        <div class="detail-sub">Généré par les chantiers issus d'Agent One.</div>
+        <div class="panel">
+          <div class="panel-title">Total <button class="export-btn" onclick="toggleExport('exp-rev')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter</button></div>
+          <div class="export-menu" id="exp-rev"><div>Exporter en PDF</div><div>Exporter en Excel</div></div>
+          <div class="revenue-box">
+            <div class="revenue-value" id="revenue-total-value">{{REVENUE_TOTAL}}</div>
+            <div class="revenue-actions">
+              <button class="btn-primary" onclick="openAddCaForm()">Ajouter un chiffre d'affaire</button>
+            </div>
+          </div>
+
+          <div class="add-form" id="add-ca-form">
+            <div class="settings-label" style="margin-bottom:var(--sp-2); font-weight:600;">Ajouter le montant facturé à un client apporté par Agent One</div>
+            <div class="form-grid">
+              <div class="form-field full"><label>Client</label><input type="text" id="ca-client" placeholder="Nom du client"></div>
+              <div class="form-field"><label>Date de réalisation</label><input type="date" id="ca-date"></div>
+              <div class="form-field"><label>Type de chantier</label><input type="text" id="ca-jobtype" placeholder="Ex: Fuite salle de bain"></div>
+              <div class="form-field full"><label>Chiffre d'affaires (€)</label><input type="number" id="ca-amount" placeholder="Ex: 450"></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="submitAddCaForm()">Valider</button>
+              <button class="btn-secondary" onclick="closeAddCaForm()">Annuler</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Détail par client, par ordre chronologique</div>
+          <div id="revenue-list">{{REVENUE_ROWS}}</div>
+          <div class="settings-row" style="border:none; margin-top:var(--sp-2); font-weight:700;"><span>Total</span><span id="revenue-total-footer">{{REVENUE_TOTAL}}</span></div>
+        </div>
+      </div>
+
+      <!-- RELANCES -->
+      <div class="view" id="view-relances">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Relances</div>
+        <div class="detail-sub">Les relances automatiques d'Agent One, programmées ou déjà envoyées.</div>
+
+        <div class="panel">
+          <div class="conv-tabs">
+            <button class="relance-tab-btn active" data-rtab="today" onclick="showRelanceTab('today')">Aujourd'hui</button>
+            <button class="relance-tab-btn" data-rtab="upcoming" onclick="showRelanceTab('upcoming')">À venir</button>
+          </div>
+
+          <div class="relance-tab-content" id="relance-today">{{REMINDERS_TODAY_ROWS}}</div>
+          <div class="relance-tab-content" id="relance-upcoming" style="display:none;">{{REMINDERS_UPCOMING_ROWS}}</div>
+        </div>
+      </div>
+
+      <!-- REGLAGES -->
+      <div class="view" id="view-settings">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Réglages</div>
+        <div class="detail-sub">Ce qu'Agent One utilise pour travailler en votre nom.</div>
+        <div class="panel">
+          <div class="settings-row"><span class="settings-label">Canal utilisé</span><span class="settings-value">SMS uniquement</span></div>
+          <div class="settings-row"><span class="settings-label">Numéro utilisé par l'agent</span><span class="settings-value">{{ARTISAN_TWILIO_NUMBER}}</span></div>
+          <div class="settings-row"><span class="settings-label">Disponibilité</span><span class="settings-value">24h/24</span></div>
+          <div class="settings-row"><span class="settings-label">Notifications envoyées à</span><span class="settings-value">{{NOTIFICATION_EMAIL}}</span></div>
+          <div class="settings-row"><span class="settings-label">Abonnement</span><span class="settings-value">{{SUBSCRIPTION_LABEL}}</span></div>
+        </div>
+        <div class="panel" style="border: 1px solid var(--accent-tint-20); background: var(--accent-tint-10);">
+          <div class="panel-title" style="color: var(--accent);">Une question ? Contactez Fenn</div>
+          <div class="settings-row"><span class="settings-label">Référent</span><span class="settings-value">Mathéo</span></div>
+          <div class="settings-row"><span class="settings-label">Téléphone</span><span class="settings-value">06 XX XX XX XX</span></div>
+          <div class="settings-row"><span class="settings-label">Email</span><span class="settings-value">contact@fenn.fr</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script src="/dashboard-assets/dashboard.js"></script>
+</body>
+</html>

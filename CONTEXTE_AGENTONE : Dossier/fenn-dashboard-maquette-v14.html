@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Fenn — Agent One Dashboard</title>
+<style>
+  /* Identité de marque figée : ce dashboard ne doit JAMAIS s'adapter au mode sombre/clair
+     du système de l'utilisateur (téléphone, Mac, PC). Toutes les couleurs sont pilotées
+     uniquement par les variables ci-dessous, jamais par prefers-color-scheme. */
+  :root { color-scheme: light; }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap');
+
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --border: #D2D2D7;
+    --text: #1D1D1F; --text-secondary: #6E6E73;
+    --accent: #0C00B6; --accent-dark: #0A009B;
+    --accent-tint-10: #E7E6F8; --accent-tint-20: #CECCF0;
+    --positive: #229955; --positive-bg: #E3F6EA; --positive-border: #B7E4C7;
+    --alert: #D64545; --alert-bg: #FBEAEA;
+    --sp-1: 8px; --sp-2: 13px; --sp-3: 21px; --sp-4: 34px; --sp-5: 55px; --sp-6: 89px; --sp-7: 144px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .shell { display: flex; max-width: 1160px; margin: 0 auto; min-height: 100vh; }
+
+  .sidebar { width: 233px; flex-shrink: 0; padding: var(--sp-5) var(--sp-3); border-right: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-6); padding-left: var(--sp-1); cursor: pointer; }
+  .brand-mark { width: 34px; height: 34px; flex-shrink: 0; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 21px; letter-spacing: -0.01em; }
+
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2); border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: background 0.15s; }
+  .nav-item:hover { background: #EBEBED; }
+  .nav-item.active { background: var(--accent-tint-10); color: var(--accent); font-weight: 600; }
+  .nav-divider { height: 1px; background: var(--border); margin: var(--sp-4) 0; }
+  .badge-count { background: var(--alert); color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 100px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+  .mobile-topbar { display: none; align-items: center; justify-content: space-between; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 20; }
+  .mobile-topbar .brand { margin: 0; }
+  .hamburger { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .hamburger div { width: 16px; height: 2px; background: var(--text); position: relative; }
+  .hamburger div::before, .hamburger div::after { content: ""; position: absolute; width: 16px; height: 2px; background: var(--text); left: 0; }
+  .hamburger div::before { top: -5px; } .hamburger div::after { top: 5px; }
+
+  .mobile-menu { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 30; }
+  .mobile-menu-panel { background: var(--surface); width: 80%; max-width: 300px; height: 100%; padding: var(--sp-4) var(--sp-3); }
+  .mobile-menu .nav-item { font-size: 16px; padding: var(--sp-2); }
+
+  .main { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
+  .topbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); }
+  .status { display: flex; align-items: center; gap: var(--sp-1); font-size: 13px; color: var(--text-secondary); font-weight: 500; background: var(--surface); border: 1px solid var(--border); padding: 6px 13px; border-radius: 100px; }
+  .status-dot { width: 6px; height: 6px; background: var(--positive); border-radius: 50%; }
+
+  .greeting { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: var(--sp-2); }
+  .greeting-sub { color: var(--text-secondary); font-size: 15px; margin-bottom: var(--sp-3); }
+  .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
+
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; height: var(--sp-7); display: flex; flex-direction: column; justify-content: space-between; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
+  .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
+  .card:hover::after { opacity: 1; }
+  .card.positive { background: var(--positive-bg); border: 1px solid var(--positive-border); }
+  .card-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+  .card-value { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .card.positive .card-value { color: var(--positive); }
+  .card-delta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
+  .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
+  .panel-clickable:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
+  .panel-title { font-size: 15px; font-weight: 600; margin-bottom: var(--sp-3); display: flex; justify-content: space-between; align-items: center; gap: var(--sp-1); }
+  .panel-title-left { display: flex; align-items: center; gap: var(--sp-1); }
+  .panel-title.clickable { cursor: pointer; }
+  .panel-tag { font-size: 12px; font-weight: 500; color: var(--text-secondary); background: var(--bg); padding: 4px 10px; border-radius: 100px; }
+  .panel-tag.positive-tag { background: var(--positive-bg); color: var(--positive); }
+
+  .export-btn { background: none; border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 100px; cursor: pointer; position: relative; }
+  .export-btn:hover { background: var(--bg); }
+  .export-menu { display: none; position: absolute; right: 0; top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); z-index: 5; min-width: 140px; }
+  .export-menu.open { display: block; }
+  .export-menu div { padding: var(--sp-1) var(--sp-2); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .export-menu div:hover { background: var(--bg); }
+
+  .person-row { border-bottom: 1px solid var(--border); }
+  .person-row:last-child { border-bottom: none; }
+  .person-summary { display: flex; justify-content: space-between; align-items: center; padding: var(--sp-2) 0; cursor: pointer; gap: var(--sp-2); }
+  .callback-name-row { display: flex; align-items: center; gap: 7px; }
+  .callback-name { font-weight: 600; font-size: 15px; }
+  .callback-detail { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .dot-alert { width: 8px; height: 8px; background: var(--alert); border-radius: 50%; flex-shrink: 0; }
+  .chevron { color: var(--text-secondary); font-size: 12px; transition: transform 0.15s; margin-left: var(--sp-1); flex-shrink: 0; }
+  .chevron.open { transform: rotate(180deg); }
+
+  .recap { display: none; background: var(--bg); border-radius: 12px; padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); font-size: 13px; color: var(--text); line-height: 1.65; }
+  .recap.open { display: block; }
+  .recap b { font-weight: 600; }
+  .recap-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 8px; }
+
+  .btn-call { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 15px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .btn-call:hover { background: #EBEBED; }
+  .btn-confirm { background: var(--positive); color: #fff; border: none; padding: 8px 15px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .btn-confirm:hover { opacity: 0.9; }
+  .btn-trash { background: var(--surface); border: 1px solid var(--border); color: var(--alert); width: 34px; height: 34px; border-radius: 100px; cursor: pointer; font-size: 14px; }
+  .btn-trash:hover { background: var(--alert-bg); }
+  .action-row { display: flex; gap: 8px; margin-top: var(--sp-1); flex-wrap: wrap; }
+  .btn-add-ca { background: var(--accent); color: #fff; border: none; padding: 6px 14px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .btn-add-ca:hover { background: var(--accent-dark); }
+
+  .revenue-box { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+  .revenue-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .revenue-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .btn-primary { background: var(--accent); color: #FFFFFF; border: none; padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-outline-accent { background: var(--accent-tint-10); color: var(--accent); border: none; padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .btn-outline-accent:hover { background: var(--accent-tint-20); }
+
+  .sublist { display: none; margin-top: var(--sp-2); }
+  .sublist.open { display: block; }
+  .toggle-link { font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: var(--sp-1); }
+
+  .view { display: none; }
+  .view.active-view { display: block; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: var(--sp-4); }
+  .back-link:hover { color: var(--text); }
+  .detail-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-2); }
+  .detail-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: var(--sp-5); }
+
+  .settings-row { display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { color: var(--text-secondary); }
+  .settings-value { font-weight: 600; }
+
+  .add-form { display: none; margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+  .add-form.open { display: block; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .form-field input, .form-field select { font-family: inherit; font-size: 14px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--accent); }
+  .form-actions { display: flex; gap: var(--sp-2); }
+  .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text); padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+  .conv-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-4); background: var(--bg); padding: 4px; border-radius: 100px; width: fit-content; }
+  .conv-tab-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .conv-tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .funnel-period-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .funnel-period-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .relance-tab-btn { border: none; background: none; padding: 8px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .relance-tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .conv-stat-row { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+  .conv-stat { flex: 1; min-width: 140px; }
+  .conv-stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .conv-stat-label { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+  .conv-pct { display: inline-flex; align-items: center; gap: 5px; background: var(--positive-bg); color: var(--positive); font-weight: 700; font-size: 13px; padding: 5px 12px; border-radius: 100px; margin-bottom: var(--sp-3); }
+
+  @media (max-width: 800px) {
+    .sidebar { display: none; }
+    .mobile-topbar { display: flex; }
+    .main { padding: var(--sp-4) var(--sp-3); }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .card:nth-child(5) { grid-column: 1 / -1; }
+    .greeting { font-size: 24px; }
+    .card { height: auto; min-height: 120px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="mobile-topbar">
+    <div class="brand" onclick="showView('overview')">
+      <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="28" height="28"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+      <span class="brand-name" style="font-size:18px">Fenn</span>
+    </div>
+    <div class="hamburger" onclick="document.getElementById('mobileMenu').style.display='block'"><div></div></div>
+  </div>
+
+  <div class="mobile-menu" id="mobileMenu" onclick="if(event.target===this)this.style.display='none'">
+    <div class="mobile-menu-panel">
+      <div class="brand" onclick="showView('overview')"><span class="brand-name">Fenn</span></div>
+      <div class="nav">
+        <div class="nav-item active" data-view="overview" onclick="showView('overview')"><span>Vue d'ensemble</span></div>
+        <div class="nav-item" data-view="appointments" onclick="showView('appointments')"><span>Rendez-vous</span></div>
+        <div class="nav-item" data-view="callbacks" onclick="showView('callbacks')"><span>À rappeler</span><span class="badge-count cb-badge">5</span></div>
+        <div class="nav-item" data-view="revenue" onclick="showView('revenue')"><span>Chiffre d'affaires</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-view="settings" onclick="showView('settings')"><span>Réglages</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="sidebar">
+      <div class="brand" onclick="showView('overview')">
+        <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+        <span class="brand-name">Fenn</span>
+      </div>
+      <div class="nav">
+        <div class="nav-item active" data-view="overview" onclick="showView('overview')"><span>Vue d'ensemble</span></div>
+        <div class="nav-item" data-view="appointments" onclick="showView('appointments')"><span>Rendez-vous</span></div>
+        <div class="nav-item" data-view="callbacks" onclick="showView('callbacks')"><span>À rappeler</span><span class="badge-count cb-badge">5</span></div>
+        <div class="nav-item" data-view="revenue" onclick="showView('revenue')"><span>Chiffre d'affaires</span></div>
+        <div class="nav-divider"></div>
+        <div class="nav-item" data-view="settings" onclick="showView('settings')"><span>Réglages</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="topbar"><div class="status"><span class="status-dot"></span> Agent One — Actif</div></div>
+
+      <!-- VUE D'ENSEMBLE -->
+      <div class="view active-view" id="view-overview">
+        <div class="greeting">Bonjour Jean-Marc</div>
+        <div class="greeting-sub">Voici votre activité récente.</div>
+        <div class="today-strip">● 3 appels manqués relayés par SMS aujourd'hui</div>
+
+        <div class="grid">
+          <div class="card" onclick="showView('sms')">
+            <div class="card-label">SMS envoyés</div>
+            <div>
+              <div class="card-value">11</div>
+              <div class="card-delta">Semaine : 52 · Mois : 190</div>
+              <svg width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none" style="margin-top:6px;"><polyline points="0,18 30,14 60,16 90,8 120,11 150,4 200,7" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>
+            </div>
+          </div>
+          <div class="card" onclick="showView('appointments')">
+            <div class="card-label">Rendez-vous confirmés</div>
+            <div><div class="card-value" id="rdv-count-value">21</div><div class="card-delta">Ce mois-ci</div></div>
+          </div>
+          <div class="card" onclick="showView('callbacks')">
+            <div class="card-label">Sans suite</div>
+            <div><div class="card-value cb-badge" id="sans-suite-value">5</div><div class="card-delta">À relancer, classés ou confirmés</div></div>
+          </div>
+          <div class="card positive" onclick="showView('conversion')">
+            <div class="card-label">Taux de conversion</div>
+            <div><div class="card-value">62%</div><div class="card-delta">+8% vs mois dernier</div></div>
+          </div>
+          <div class="card" onclick="showView('relances')">
+            <div class="card-label">Relances</div>
+            <div><div class="card-value">3</div><div class="card-delta">Programmées aujourd'hui</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title"><div class="panel-title-left">À rappeler <span class="badge-count cb-badge">5</span></div></div>
+
+          <div class="person-row" id="ov-cbrow-cb1"><div class="person-summary" onclick="showView('callbacks'); openSpecificRecap('cb1');">
+            <div><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Sylvie Marchand</span></div><div class="callback-detail">06 12 34 56 78 · Fuite salle de bain</div></div>
+          </div></div>
+          <div class="person-row" id="ov-cbrow-cb2"><div class="person-summary" onclick="showView('callbacks'); openSpecificRecap('cb2');">
+            <div><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Karim Belaïd</span></div><div class="callback-detail">06 98 76 54 32 · Devis chauffe-eau</div></div>
+          </div></div>
+          <div class="person-row" id="ov-cbrow-cb3"><div class="person-summary" onclick="showView('callbacks'); openSpecificRecap('cb3');">
+            <div><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Antoine Roques</span></div><div class="callback-detail">07 45 12 89 03 · Urgence</div></div>
+          </div></div>
+
+          <div class="sublist" id="more-callbacks">
+            <div class="person-row" id="ov-cbrow-cb4"><div class="person-summary" onclick="showView('callbacks'); openSpecificRecap('cb4');">
+              <div><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Nadia Ferrand</span></div><div class="callback-detail">06 33 21 09 87 · Robinetterie</div></div>
+            </div></div>
+            <div class="person-row" id="ov-cbrow-cb5"><div class="person-summary" onclick="showView('callbacks'); openSpecificRecap('cb5');">
+              <div><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Julien Faure</span></div><div class="callback-detail">07 12 45 90 33 · Chaudière</div></div>
+            </div></div>
+          </div>
+          <div class="toggle-link" onclick="toggleSublist('more-callbacks', this)">+ 2 autres ▾</div>
+        </div>
+
+        <div class="panel panel-clickable" onclick="showView('revenue')">
+          <div class="panel-title">Chiffre d'affaires généré</div>
+          <div class="revenue-box"><div class="revenue-value">4 850 €</div><button class="btn-primary" onclick="event.stopPropagation(); showView('revenue'); openAddCaForm();">Ajouter un chiffre d'affaire</button></div>
+        </div>
+      </div>
+
+      <!-- SMS ENVOYES -->
+      <div class="view" id="view-sms">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">SMS envoyés</div>
+        <div class="detail-sub">Chaque appel manqué déclenche un SMS immédiat — voici la preuve de rapidité et le volume traité.</div>
+
+        <div class="panel">
+          <div class="panel-title">Délai moyen d'envoi après le raccroché</div>
+          <div style="display:flex; align-items:baseline; gap:10px; margin-bottom: var(--sp-3);">
+            <div style="font-size:40px; font-weight:700; letter-spacing:-0.03em; color: var(--accent);">&lt; 1 seconde</div>
+            <div class="settings-label">entre la fin de l'appel manqué et l'envoi du SMS</div>
+          </div>
+          <div class="settings-label" style="margin-bottom:8px; font-weight:600;">Exemples récents</div>
+          <div class="settings-row"><span class="settings-label">Sylvie Marchand</span><span class="settings-value">Raccroché 8h47:03 → SMS envoyé 8h47:04</span></div>
+          <div class="settings-row"><span class="settings-label">Antoine Roques</span><span class="settings-value">Raccroché 16h18:41 → SMS envoyé 16h18:42</span></div>
+          <div class="settings-row"><span class="settings-label">Nadia Ferrand</span><span class="settings-value">Raccroché 10h12:15 → SMS envoyé 10h12:16</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Volume de SMS envoyés</div>
+          <div class="settings-row"><span class="settings-label">Aujourd'hui</span><span class="settings-value">11 SMS</span></div>
+          <div class="settings-row"><span class="settings-label">Cette semaine</span><span class="settings-value">52 SMS</span></div>
+          <div class="settings-row"><span class="settings-label">Ce mois-ci</span><span class="settings-value">190 SMS</span></div>
+        </div>
+      </div>
+
+      <!-- TAUX DE CONVERSION -->
+      <div class="view" id="view-conversion">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Taux de conversion</div>
+        <div class="detail-sub">La preuve, en chiffres, que Agent One s'améliore en continu.</div>
+
+        <div class="conv-pct">62% de taux de conversion actuel · +8% vs mois dernier</div>
+
+        <div class="panel">
+          <div class="panel-title">Entonnoir de conversion</div>
+          <div class="conv-tabs" style="margin-top:0;">
+            <button class="funnel-period-btn active" data-fperiod="today" onclick="showFunnelPeriod('today')">Aujourd'hui</button>
+            <button class="funnel-period-btn" data-fperiod="week" onclick="showFunnelPeriod('week')">Cette semaine</button>
+            <button class="funnel-period-btn" data-fperiod="month" onclick="showFunnelPeriod('month')">Ce mois-ci</button>
+          </div>
+
+          <div class="funnel-content" id="funnel-today">
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:var(--sp-3);">
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>SMS envoyés</span><span style="font-weight:600;">11 · 100%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:100%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Réponses obtenues</span><span style="font-weight:600;">7 · 64%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:64%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Rendez-vous confirmés</span><span style="font-weight:600;">2 · 18%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:18%; background:var(--positive); height:10px; border-radius:100px;"></div></div></div>
+            </div>
+          </div>
+          <div class="funnel-content" id="funnel-week" style="display:none;">
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:var(--sp-3);">
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>SMS envoyés</span><span style="font-weight:600;">52 · 100%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:100%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Réponses obtenues</span><span style="font-weight:600;">34 · 65%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:65%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Rendez-vous confirmés</span><span style="font-weight:600;">8 · 15%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:15%; background:var(--positive); height:10px; border-radius:100px;"></div></div></div>
+            </div>
+          </div>
+          <div class="funnel-content" id="funnel-month" style="display:none;">
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:var(--sp-3);">
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>SMS envoyés</span><span style="font-weight:600;">190 · 100%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:100%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Réponses obtenues</span><span style="font-weight:600;">128 · 67%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:67%; background:var(--accent); height:10px; border-radius:100px;"></div></div></div>
+              <div><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;"><span>Rendez-vous confirmés</span><span style="font-weight:600;">21 · 11%</span></div><div style="background:var(--bg); border-radius:100px; height:10px;"><div style="width:11%; background:var(--positive); height:10px; border-radius:100px;"></div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Évolution par période</div>
+          <div class="conv-tabs" style="margin-top:0;">
+            <button class="conv-tab-btn active" data-tab="today" onclick="showConvTab('today')">Aujourd'hui</button>
+            <button class="conv-tab-btn" data-tab="week" onclick="showConvTab('week')">Cette semaine</button>
+            <button class="conv-tab-btn" data-tab="month" onclick="showConvTab('month')">Ce mois-ci</button>
+          </div>
+
+          <div class="conv-tab-content" id="conv-today">
+            <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><polyline points="0,50 50,42 100,45 150,25 200,30 250,12 300,18" fill="none" stroke="var(--accent)" stroke-width="3"/></svg>
+            <div class="conv-stat-row">
+              <div class="conv-stat"><div class="conv-stat-value">11</div><div class="conv-stat-label">SMS envoyés</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">7</div><div class="conv-stat-label">SMS ayant obtenu une réponse</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">2</div><div class="conv-stat-label">Discussions ayant conclu à un rendez-vous</div></div>
+              <div class="conv-stat"><div class="conv-stat-value" style="color:var(--positive);">+34%</div><div class="conv-stat-label">vs hier</div></div>
+            </div>
+          </div>
+
+          <div class="conv-tab-content" id="conv-week" style="display:none;">
+            <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><polyline points="0,48 50,44 100,38 150,30 200,22 250,20 300,10" fill="none" stroke="var(--accent)" stroke-width="3"/></svg>
+            <div class="conv-stat-row">
+              <div class="conv-stat"><div class="conv-stat-value">52</div><div class="conv-stat-label">SMS envoyés</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">34</div><div class="conv-stat-label">SMS ayant obtenu une réponse</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">8</div><div class="conv-stat-label">Discussions ayant conclu à un rendez-vous</div></div>
+              <div class="conv-stat"><div class="conv-stat-value" style="color:var(--positive);">+12%</div><div class="conv-stat-label">vs semaine dernière</div></div>
+            </div>
+          </div>
+
+          <div class="conv-tab-content" id="conv-month" style="display:none;">
+            <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><polyline points="0,45 50,40 100,42 150,32 200,28 250,18 300,14" fill="none" stroke="var(--accent)" stroke-width="3"/></svg>
+            <div class="conv-stat-row">
+              <div class="conv-stat"><div class="conv-stat-value">190</div><div class="conv-stat-label">SMS envoyés</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">128</div><div class="conv-stat-label">SMS ayant obtenu une réponse</div></div>
+              <div class="conv-stat"><div class="conv-stat-value">21</div><div class="conv-stat-label">Discussions ayant conclu à un rendez-vous</div></div>
+              <div class="conv-stat"><div class="conv-stat-value" style="color:var(--positive);">+8%</div><div class="conv-stat-label">vs mois dernier</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RENDEZ-VOUS -->
+      <div class="view" id="view-appointments">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Rendez-vous confirmés</div>
+        <div class="detail-sub"><span id="rdv-detail-count">21</span> rendez-vous confirmés ce mois-ci. Cliquez sur un nom pour voir le détail du chantier.</div>
+
+        <div class="panel">
+          <div class="panel-title"><div class="panel-title-left">Aujourd'hui <span class="panel-tag">2</span></div></div>
+          <div id="today-appt-list">
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rdv1')">
+                <div class="callback-name-row"><span class="callback-name">Sylvie Marchand</span></div>
+                <span class="chevron" id="chev-rdv1">▾</span>
+              </div>
+              <div class="recap" id="recap-rdv1">
+                <div><b>Résumé :</b> fuite détectée sous l'évier hier soir, contenue temporairement.</div>
+                <div><b>Heure :</b> appel manqué à 8h47, SMS échangés jusqu'à 8h52</div>
+                <div><b>Confirmé par Agent One :</b> Oui</div>
+                <div class="recap-row"><span><b>CA généré :</b> —</span><button class="btn-add-ca" onclick="showView('revenue'); openAddCaForm();">Ajouter chiffre d'affaire</button></div>
+              </div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rdv2')">
+                <div class="callback-name-row"><span class="callback-name">Marc Dubreuil</span></div>
+                <span class="chevron" id="chev-rdv2">▾</span>
+              </div>
+              <div class="recap" id="recap-rdv2">
+                <div><b>Résumé :</b> remplacement chauffe-eau 200L, ancien modèle électrique en panne.</div>
+                <div><b>Heure :</b> appel manqué à 13h05, SMS échangés jusqu'à 13h11</div>
+                <div><b>Confirmé par Agent One :</b> Oui</div>
+                <div class="recap-row"><span><b>CA généré :</b> —</span><button class="btn-add-ca" onclick="showView('revenue'); openAddCaForm();">Ajouter chiffre d'affaire</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title clickable" onclick="togglePanelList('week-list','chev-week')">
+            <div class="panel-title-left">Cette semaine <span class="panel-tag">8</span></div>
+            <span class="chevron" id="chev-week">▾</span>
+          </div>
+          <div class="sublist" id="week-list">
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('w1')"><div class="callback-name-row"><span class="callback-name">Nadia Ferrand</span></div><span class="chevron" id="chev-w1">▾</span></div>
+              <div class="recap" id="recap-w1">
+                <div><b>Résumé :</b> changement de robinetterie cuisine.</div>
+                <div><b>Heure :</b> appel manqué lundi à 10h12, SMS échangés dans l'heure</div>
+                <div><b>Confirmé par Agent One :</b> Oui</div>
+                <div class="recap-row"><span><b>CA généré :</b> 480 €</span></div>
+              </div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('w2')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Julien Faure</span></div><span class="chevron" id="chev-w2">▾</span></div>
+              <div class="recap" id="recap-w2">
+                <div><b>Résumé :</b> panne de chaudière, intervention rapide demandée.</div>
+                <div><b>Heure :</b> SMS reçu mardi à 18h30</div>
+                <div><b>Confirmé par Agent One :</b> Oui</div>
+                <div class="recap-row"><span><b>CA généré :</b> —</span><button class="btn-add-ca" onclick="showView('revenue'); openAddCaForm();">Ajouter chiffre d'affaire</button></div>
+              </div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('w3')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Claire Dupuis</span></div><span class="chevron" id="chev-w3">▾</span></div>
+              <div class="recap" id="recap-w3">
+                <div><b>Résumé :</b> installation d'un mitigeur.</div>
+                <div><b>Heure :</b> appel manqué mercredi à 9h20, SMS échangés dans l'heure</div>
+                <div><b>Confirmé par Agent One :</b> Oui</div>
+                <div class="recap-row"><span><b>CA généré :</b> —</span><button class="btn-add-ca" onclick="showView('revenue'); openAddCaForm();">Ajouter chiffre d'affaire</button></div>
+              </div>
+            </div>
+
+            <div class="sublist" id="week-extra">
+              <div class="person-row">
+                <div class="person-summary" onclick="toggleRecap('w4')"><div class="callback-name-row"><span class="callback-name">Hugo Lambert</span></div><span class="chevron" id="chev-w4">▾</span></div>
+                <div class="recap" id="recap-w4"><div><b>Résumé :</b> fuite radiateur.</div><div><b>Heure :</b> jeudi 11h05</div><div><b>Confirmé par Agent One :</b> Oui</div><div class="recap-row"><span><b>CA généré :</b> 210 €</span></div></div>
+              </div>
+              <div class="settings-row" style="border:none; padding-top: var(--sp-1);"><span class="settings-label">+ 4 autres rendez-vous cette semaine</span></div>
+            </div>
+            <div class="toggle-link" onclick="toggleSublist('week-extra', this)">+ 5 autres rendez-vous cette semaine ▾</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title clickable" onclick="togglePanelList('month-list','chev-month')">
+            <div class="panel-title-left">Ce mois-ci <span class="panel-tag" id="rdv-month-tag">21</span></div>
+            <span class="chevron" id="chev-month">▾</span>
+          </div>
+          <div class="sublist" id="month-list">
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('m1')"><div class="callback-name-row"><span class="callback-name">Sylvie Marchand</span></div><span class="chevron" id="chev-m1">▾</span></div>
+              <div class="recap" id="recap-m1"><div><b>Résumé :</b> fuite salle de bain.</div><div><b>Heure :</b> 9 juillet, 8h47</div><div><b>Confirmé par Agent One :</b> Oui</div><div class="recap-row"><span><b>CA généré :</b> —</span></div></div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('m2')"><div class="callback-name-row"><span class="callback-name">Marc Dubreuil</span></div><span class="chevron" id="chev-m2">▾</span></div>
+              <div class="recap" id="recap-m2"><div><b>Résumé :</b> installation chauffe-eau.</div><div><b>Heure :</b> 9 juillet, 13h05</div><div><b>Confirmé par Agent One :</b> Oui</div><div class="recap-row"><span><b>CA généré :</b> 1 450 €</span></div></div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('m3')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Nadia Ferrand</span></div><span class="chevron" id="chev-m3">▾</span></div>
+              <div class="recap" id="recap-m3"><div><b>Résumé :</b> robinetterie.</div><div><b>Heure :</b> 6 juillet, 10h12</div><div><b>Confirmé par Agent One :</b> Oui</div><div class="recap-row"><span><b>CA généré :</b> —</span><button class="btn-add-ca" onclick="showView('revenue'); openAddCaForm();">Ajouter chiffre d'affaire</button></div></div>
+            </div>
+
+            <div class="sublist" id="month-extra">
+              <div class="settings-row" style="border:none;"><span class="settings-label">+ 18 autres rendez-vous ce mois-ci (même logique, données à venir avec les vraies données client)</span></div>
+            </div>
+            <div class="toggle-link" onclick="toggleSublist('month-extra', this)">+ 18 autres rendez-vous ce mois-ci ▾</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- A RAPPELER -->
+      <div class="view" id="view-callbacks">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">À rappeler <span class="badge-count cb-badge">5</span></div>
+        <div class="detail-sub">Prospects sans réponse confirmée. Cliquez sur un nom pour voir l'échange avant de rappeler.</div>
+        <div class="panel">
+          <div class="person-row" id="cbrow-cb1">
+            <div class="person-summary" onclick="toggleRecap('cb1')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Sylvie Marchand</span></div><span class="chevron" id="chev-cb1">▾</span></div>
+            <div class="recap" id="recap-cb1">
+              <b>Appel manqué sur votre ligne à 8h47.</b> SMS envoyé automatiquement par Agent One. <b>Résumé :</b> fuite sous évier, urgence modérée, dispo toute la journée.
+              <div class="action-row">
+                <button class="btn-call">Rappeler 06 12 34 56 78</button>
+                <button class="btn-confirm" onclick="confirmCallback('cb1','Sylvie Marchand')">Confirmé</button>
+                <button class="btn-trash" onclick="deleteCallback('cb1')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="person-row" id="cbrow-cb2">
+            <div class="person-summary" onclick="toggleRecap('cb2')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Karim Belaïd</span></div><span class="chevron" id="chev-cb2">▾</span></div>
+            <div class="recap" id="recap-cb2">
+              <b>SMS envoyé à 11h02 :</b> "Bonjour, ici l'assistant de Jean-Marc Plomberie, je prends note de votre demande de devis chauffe-eau, un créneau vous convient-il cette semaine ?"<br><b>Réponse reçue à 11h15 :</b> "Oui plutôt jeudi si possible, merci."
+              <div class="action-row">
+                <button class="btn-call">Rappeler 06 98 76 54 32</button>
+                <button class="btn-confirm" onclick="confirmCallback('cb2','Karim Belaïd')">Confirmé</button>
+                <button class="btn-trash" onclick="deleteCallback('cb2')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="person-row" id="cbrow-cb3">
+            <div class="person-summary" onclick="toggleRecap('cb3')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Antoine Roques</span></div><span class="chevron" id="chev-cb3">▾</span></div>
+            <div class="recap" id="recap-cb3">
+              <b>Appel manqué sur votre ligne à 16h18.</b> SMS envoyé automatiquement par Agent One à 16h20, aucune réponse reçue. Message envoyé : "Bonjour, ici l'assistant de Jean-Marc Plomberie, pouvez-vous préciser l'urgence de votre demande ?"
+              <div class="action-row">
+                <button class="btn-call">Rappeler 07 45 12 89 03</button>
+                <button class="btn-confirm" onclick="confirmCallback('cb3','Antoine Roques')">Confirmé</button>
+                <button class="btn-trash" onclick="deleteCallback('cb3')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="person-row" id="cbrow-cb4">
+            <div class="person-summary" onclick="toggleRecap('cb4')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Nadia Ferrand</span></div><span class="chevron" id="chev-cb4">▾</span></div>
+            <div class="recap" id="recap-cb4">
+              <b>Appel manqué sur votre ligne à 10h12.</b> SMS envoyé automatiquement par Agent One. <b>Résumé :</b> robinetterie à changer, pas d'urgence.
+              <div class="action-row">
+                <button class="btn-call">Rappeler 06 33 21 09 87</button>
+                <button class="btn-confirm" onclick="confirmCallback('cb4','Nadia Ferrand')">Confirmé</button>
+                <button class="btn-trash" onclick="deleteCallback('cb4')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="person-row" id="cbrow-cb5">
+            <div class="person-summary" onclick="toggleRecap('cb5')"><div class="callback-name-row"><span class="dot-alert"></span><span class="callback-name">Julien Faure</span></div><span class="chevron" id="chev-cb5">▾</span></div>
+            <div class="recap" id="recap-cb5">
+              <b>SMS envoyé à 18h30 :</b> "Bonjour, ici l'assistant de Jean-Marc Plomberie, votre chaudière est-elle toujours en panne ?"<br><b>Réponse reçue à 18h34 :</b> "Oui, plus de chauffage depuis ce matin."
+              <div class="action-row">
+                <button class="btn-call">Rappeler 07 12 45 90 33</button>
+                <button class="btn-confirm" onclick="confirmCallback('cb5','Julien Faure')">Confirmé</button>
+                <button class="btn-trash" onclick="deleteCallback('cb5')" title="Supprimer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHIFFRE D'AFFAIRES -->
+      <div class="view" id="view-revenue">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Chiffre d'affaires</div>
+        <div class="detail-sub">Généré par les chantiers issus d'Agent One.</div>
+        <div class="panel">
+          <div class="panel-title">Total <button class="export-btn" onclick="toggleExport('exp-rev')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter</button></div>
+          <div class="export-menu" id="exp-rev"><div>Exporter en PDF</div><div>Exporter en Excel</div></div>
+          <div class="revenue-box">
+            <div class="revenue-value">4 850 €</div>
+            <div class="revenue-actions">
+              <button class="btn-primary" onclick="openAddCaForm()">Ajouter un chiffre d'affaire</button>
+            </div>
+          </div>
+
+          <div class="add-form" id="add-ca-form">
+            <div class="settings-label" style="margin-bottom:var(--sp-2); font-weight:600;">Ajouter le montant facturé à un client apporté par Agent One</div>
+            <div class="form-grid">
+              <div class="form-field full"><label>Client</label><input type="text" placeholder="Nom du client"></div>
+              <div class="form-field"><label>Date de réalisation</label><input type="text" placeholder="Ex: 9 juillet 2026"></div>
+              <div class="form-field"><label>Type de chantier</label><input type="text" placeholder="Ex: Fuite salle de bain"></div>
+              <div class="form-field full"><label>Chiffre d'affaires (€)</label><input type="number" placeholder="Ex: 450"></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" onclick="alert('Démonstration — l\'enregistrement réel sera géré par Claude Code.')">Valider</button>
+              <button class="btn-secondary" onclick="closeAddCaForm()">Annuler</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Détail par client, par ordre chronologique</div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev1')"><div class="callback-name-row"><span class="callback-name">Nadia Ferrand</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">480 €</span><span class="chevron" id="chev-rev1">▾</span></div></div>
+            <div class="recap" id="recap-rev1">
+              <div><b>Date de réalisation :</b> 6 juillet 2026</div>
+              <div><b>Type de chantier :</b> Robinetterie</div>
+              <div><b>Résumé :</b> changement de robinetterie cuisine, rendez-vous obtenu via SMS.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev1')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev1" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev2')"><div class="callback-name-row"><span class="callback-name">Hugo Lambert</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">210 €</span><span class="chevron" id="chev-rev2">▾</span></div></div>
+            <div class="recap" id="recap-rev2">
+              <div><b>Date de réalisation :</b> 7 juillet 2026</div>
+              <div><b>Type de chantier :</b> Fuite radiateur</div>
+              <div><b>Résumé :</b> réparation d'une fuite sur radiateur salon.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev2')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev2" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev3')"><div class="callback-name-row"><span class="callback-name">Claire Dupuis</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">390 €</span><span class="chevron" id="chev-rev3">▾</span></div></div>
+            <div class="recap" id="recap-rev3">
+              <div><b>Date de réalisation :</b> 8 juillet 2026</div>
+              <div><b>Type de chantier :</b> Installation mitigeur</div>
+              <div><b>Résumé :</b> installation d'un mitigeur en salle de bain.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev3')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev3" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev4')"><div class="callback-name-row"><span class="callback-name">Sylvie Marchand</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">320 €</span><span class="chevron" id="chev-rev4">▾</span></div></div>
+            <div class="recap" id="recap-rev4">
+              <div><b>Date de réalisation :</b> 9 juillet 2026</div>
+              <div><b>Type de chantier :</b> Fuite salle de bain</div>
+              <div><b>Résumé :</b> réparation d'une fuite sous l'évier de la salle de bain.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev4')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev4" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev5')"><div class="callback-name-row"><span class="callback-name">Marc Dubreuil</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">1 450 €</span><span class="chevron" id="chev-rev5">▾</span></div></div>
+            <div class="recap" id="recap-rev5">
+              <div><b>Date de réalisation :</b> 9 juillet 2026</div>
+              <div><b>Type de chantier :</b> Installation chauffe-eau</div>
+              <div><b>Résumé :</b> remplacement d'un chauffe-eau 200L, ancien modèle électrique en panne.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev5')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev5" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev6')"><div class="callback-name-row"><span class="callback-name">Karim Belaïd</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">1 200 €</span><span class="chevron" id="chev-rev6">▾</span></div></div>
+            <div class="recap" id="recap-rev6">
+              <div><b>Date de réalisation :</b> 10 juillet 2026</div>
+              <div><b>Type de chantier :</b> Remplacement chauffe-eau</div>
+              <div><b>Résumé :</b> devis accepté après échange SMS, chantier réalisé le lendemain.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev6')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev6" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="person-row">
+            <div class="person-summary" onclick="toggleRecap('rev7')"><div class="callback-name-row"><span class="callback-name">Antoine Roques</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="settings-value">800 €</span><span class="chevron" id="chev-rev7">▾</span></div></div>
+            <div class="recap" id="recap-rev7">
+              <div><b>Date de réalisation :</b> 11 juillet 2026</div>
+              <div><b>Type de chantier :</b> Urgence plomberie</div>
+              <div><b>Résumé :</b> intervention urgente suite à la relance SMS d'Agent One.</div>
+              <div class="recap-row"><button class="export-btn" onclick="toggleExport('exp-rev7')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M12 15V3"></path><path d="M7 8l5-5 5 5"></path><path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4"></path></svg>Exporter cette fiche</button></div>
+              <div class="export-menu" id="exp-rev7" style="position:static; margin-top:6px; box-shadow:none; border:1px solid var(--border);"><div>Exporter en PDF</div><div>Exporter en CSV</div></div>
+            </div>
+          </div>
+          <div class="settings-row" style="border:none; margin-top:var(--sp-2); font-weight:700;"><span>Total</span><span>4 850 €</span></div>
+        </div>
+      </div>
+
+      <!-- RELANCES -->
+      <div class="view" id="view-relances">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Relances</div>
+        <div class="detail-sub">Les relances automatiques d'Agent One, programmées ou déjà envoyées.</div>
+
+        <div class="panel">
+          <div class="conv-tabs">
+            <button class="relance-tab-btn active" data-rtab="today" onclick="showRelanceTab('today')">Aujourd'hui</button>
+            <button class="relance-tab-btn" data-rtab="upcoming" onclick="showRelanceTab('upcoming')">À venir</button>
+          </div>
+
+          <div class="relance-tab-content" id="relance-today">
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rel1')">
+                <div><span class="settings-value" style="margin-right:10px;">09h15</span><span class="callback-name">Julien Faure</span> <span class="panel-tag" style="margin-left:6px;">Silence sur 1er message</span></div>
+                <span class="chevron" id="chev-rel1">▾</span>
+              </div>
+              <div class="recap" id="recap-rel1">
+                <div><b>Contexte :</b> aucune réponse au SMS initial envoyé hier à 18h30 (panne de chaudière).</div>
+                <div><b>Message prévu :</b> "Bonjour, je reviens vers vous concernant votre chaudière, êtes-vous toujours dans le besoin d'une intervention ?"</div>
+              </div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rel2')">
+                <div><span class="settings-value" style="margin-right:10px;">11h40</span><span class="callback-name">Claire Dupuis</span> <span class="panel-tag" style="margin-left:6px;">Rappel avant RDV</span></div>
+                <span class="chevron" id="chev-rel2">▾</span>
+              </div>
+              <div class="recap" id="recap-rel2">
+                <div><b>Contexte :</b> rendez-vous confirmé pour le 11 juillet (installation d'un mitigeur), rappel envoyé 2 jours avant.</div>
+                <div><b>Message prévu :</b> "Bonjour, pour rappel vous avez rendez-vous avec Jean-Marc Plomberie le 11 juillet. À bientôt !"</div>
+              </div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rel3')">
+                <div><span class="settings-value" style="margin-right:10px;">16h20</span><span class="callback-name">Karim Belaïd</span> <span class="panel-tag" style="margin-left:6px;">Relance "je réfléchis"</span></div>
+                <span class="chevron" id="chev-rel3">▾</span>
+              </div>
+              <div class="recap" id="recap-rel3">
+                <div><b>Contexte :</b> Karim avait répondu "je vais réfléchir" il y a 3 jours suite au devis chauffe-eau.</div>
+                <div><b>Message prévu :</b> "Bonjour, je me permets de revenir vers vous suite à votre demande de devis, avez-vous eu le temps d'y réfléchir ?"</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="relance-tab-content" id="relance-upcoming" style="display:none;">
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rel4')">
+                <div><span class="settings-value" style="margin-right:10px;">Demain, 10h00</span><span class="callback-name">Nadia Ferrand</span> <span class="panel-tag" style="margin-left:6px;">Rappel avant RDV</span></div>
+                <span class="chevron" id="chev-rel4">▾</span>
+              </div>
+              <div class="recap" id="recap-rel4"><div><b>Contexte :</b> rendez-vous confirmé pour le 13 juillet (robinetterie), rappel 2 jours avant.</div></div>
+            </div>
+            <div class="person-row">
+              <div class="person-summary" onclick="toggleRecap('rel5')">
+                <div><span class="settings-value" style="margin-right:10px;">Vendredi</span><span class="callback-name">Hugo Lambert</span> <span class="panel-tag" style="margin-left:6px;">Relance "je réfléchis"</span></div>
+                <span class="chevron" id="chev-rel5">▾</span>
+              </div>
+              <div class="recap" id="recap-rel5"><div><b>Contexte :</b> réponse "je vais réfléchir" reçue mardi, relance prévue à J+3.</div></div>
+            </div>
+            <div class="settings-row" style="border:none; padding-top: var(--sp-1);"><span class="settings-label">Aucune autre relance programmée au-delà de cette semaine pour l'instant</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REGLAGES -->
+      <div class="view" id="view-settings">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Réglages</div>
+        <div class="detail-sub">Ce qu'Agent One utilise pour travailler en votre nom.</div>
+        <div class="panel">
+          <div class="settings-row"><span class="settings-label">Canal utilisé</span><span class="settings-value">SMS uniquement</span></div>
+          <div class="settings-row"><span class="settings-label">Numéro utilisé par l'agent</span><span class="settings-value">09 XX XX XX XX</span></div>
+          <div class="settings-row"><span class="settings-label">Disponibilité</span><span class="settings-value">24h/24</span></div>
+          <div class="settings-row"><span class="settings-label">Notifications envoyées à</span><span class="settings-value">jm.plomberie@gmail.com</span></div>
+          <div class="settings-row"><span class="settings-label">Abonnement</span><span class="settings-value">Actif — renouvellement le 12/08</span></div>
+        </div>
+        <div class="panel" style="border: 1px solid var(--accent-tint-20); background: var(--accent-tint-10);">
+          <div class="panel-title" style="color: var(--accent);">Une question ? Contactez Fenn</div>
+          <div class="settings-row"><span class="settings-label">Référent</span><span class="settings-value">Mathéo</span></div>
+          <div class="settings-row"><span class="settings-label">Téléphone</span><span class="settings-value">06 XX XX XX XX</span></div>
+          <div class="settings-row"><span class="settings-label">Email</span><span class="settings-value">contact@fenn.fr</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
+  document.getElementById('view-' + id).classList.add('active-view');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item[data-view="' + id + '"]').forEach(n => n.classList.add('active'));
+  document.getElementById('mobileMenu').style.display = 'none';
+  window.scrollTo(0,0);
+}
+function toggleRecap(id) {
+  document.getElementById('recap-' + id).classList.toggle('open');
+  document.getElementById('chev-' + id).classList.toggle('open');
+}
+function openSpecificRecap(id) {
+  setTimeout(function () {
+    var recap = document.getElementById('recap-' + id);
+    var chev = document.getElementById('chev-' + id);
+    if (recap && !recap.classList.contains('open')) { recap.classList.add('open'); if (chev) chev.classList.add('open'); }
+    if (recap) recap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 60);
+}
+function togglePanelList(listId, chevId) {
+  document.getElementById(listId).classList.toggle('open');
+  document.getElementById(chevId).classList.toggle('open');
+}
+function toggleSublist(id, linkEl) {
+  const list = document.getElementById(id);
+  list.classList.toggle('open');
+  const isOpen = list.classList.contains('open');
+  if (!linkEl.dataset.label) linkEl.dataset.label = linkEl.textContent.replace('▾','').replace('▴','').replace('— Voir moins','').trim();
+  linkEl.textContent = isOpen ? '— Voir moins ▴' : linkEl.dataset.label + ' ▾';
+}
+function toggleExport(id) {
+  document.querySelectorAll('.export-menu').forEach(m => { if (m.id !== id) m.classList.remove('open'); });
+  document.getElementById(id).classList.toggle('open');
+}
+function openAddCaForm() { document.getElementById('add-ca-form').classList.add('open'); }
+function closeAddCaForm() { document.getElementById('add-ca-form').classList.remove('open'); }
+
+function updateCbBadges(delta) {
+  document.querySelectorAll('.cb-badge').forEach(function (el) {
+    el.textContent = Math.max(0, parseInt(el.textContent) + delta);
+  });
+}
+function confirmCallback(id, name) {
+  var row = document.getElementById('cbrow-' + id);
+  if (row) row.remove();
+  var ovRow = document.getElementById('ov-cbrow-' + id);
+  if (ovRow) ovRow.remove();
+  updateCbBadges(-1);
+  incrementRdvCount();
+  var list = document.getElementById('today-appt-list');
+  var div = document.createElement('div');
+  div.className = 'person-row';
+  div.innerHTML = '<div class="person-summary" style="cursor:default;"><div class="callback-name-row"><span class="callback-name">' + name + '</span><span class="panel-tag positive-tag">Confirmé par l\'entreprise</span></div></div>' +
+    '<div style="padding:0 0 13px 0;"><button class="btn-secondary" onclick="toggleDetailsInput(this)">Ajouter détails</button>' +
+    '<div style="display:none;margin-top:8px;"><input type="text" placeholder="Ex: Remplacement joint robinet cuisine" style="width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);font-family:inherit;font-size:14px;"></div></div>';
+  list.appendChild(div);
+}
+function incrementRdvCount() {
+  ['rdv-count-value', 'rdv-detail-count', 'rdv-month-tag'].forEach(function (elId) {
+    var el = document.getElementById(elId);
+    if (el) el.textContent = parseInt(el.textContent) + 1;
+  });
+}
+function deleteCallback(id) {
+  var row = document.getElementById('cbrow-' + id);
+  if (row) row.remove();
+  var ovRow = document.getElementById('ov-cbrow-' + id);
+  if (ovRow) ovRow.remove();
+  updateCbBadges(-1);
+}
+function toggleDetailsInput(btn) {
+  var input = btn.nextElementSibling;
+  input.style.display = (input.style.display === 'none') ? 'block' : 'none';
+}
+function showRelanceTab(id) {
+  document.querySelectorAll('.relance-tab-content').forEach(v => v.style.display = 'none');
+  document.getElementById('relance-' + id).style.display = 'block';
+  document.querySelectorAll('.relance-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.relance-tab-btn[data-rtab="' + id + '"]').classList.add('active');
+}
+function showFunnelPeriod(id) {
+  document.querySelectorAll('.funnel-content').forEach(v => v.style.display = 'none');
+  document.getElementById('funnel-' + id).style.display = 'block';
+  document.querySelectorAll('.funnel-period-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.funnel-period-btn[data-fperiod="' + id + '"]').classList.add('active');
+}
+function showConvTab(id) {
+  document.querySelectorAll('.conv-tab-content').forEach(v => v.style.display = 'none');
+  document.getElementById('conv-' + id).style.display = 'block';
+  document.querySelectorAll('.conv-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.conv-tab-btn[data-tab="' + id + '"]').classList.add('active');
+}
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.export-btn') && !e.target.closest('.export-menu')) {
+    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>
