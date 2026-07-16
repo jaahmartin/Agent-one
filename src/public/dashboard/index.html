@@ -24,16 +24,45 @@
     --accent-tint-10: #E7E6F8; --accent-tint-20: #CECCF0;
     --positive: #229955; --positive-bg: #E3F6EA; --positive-border: #B7E4C7;
     --alert: #D64545; --alert-bg: #FBEAEA;
-    --sp-1: 8px; --sp-2: 13px; --sp-3: 21px; --sp-4: 34px; --sp-5: 55px; --sp-6: 89px; --sp-7: 144px;
+
+    /* Échelle d'espacement FLUIDE : chaque valeur grandit/rétrécit en continu
+       avec la largeur de la fenêtre (clamp(mini, préféré-en-vw, maxi)),
+       plutôt que de sauter brutalement à un seul palier mobile/desktop.
+       Les bornes "préféré" sont calées pour retomber sur les anciennes
+       valeurs fixes autour de 1280px de large. */
+    --sp-1: clamp(6px, 0.62vw, 11px);
+    --sp-2: clamp(10px, 1.02vw, 18px);
+    --sp-3: clamp(15px, 1.64vw, 28px);
+    --sp-4: clamp(24px, 2.66vw, 46px);
+    --sp-5: clamp(38px, 4.3vw, 74px);
+    --sp-6: clamp(60px, 6.95vw, 120px);
+    --sp-7: clamp(110px, 11.25vw, 195px);
+
+    /* Tailles de texte fluides (mêmes bornes que les anciennes valeurs fixes,
+       calées à ~1280px de large). */
+    --fs-brand: clamp(17px, 1.64vw, 27px);
+    --fs-greeting: clamp(21px, 2.19vw, 36px);
+    --fs-card-value: clamp(24px, 2.66vw, 44px);
+    --fs-detail-title: clamp(19px, 1.88vw, 31px);
+    --fs-revenue-value: clamp(21px, 2.19vw, 36px);
+    --fs-panel-title: clamp(13px, 1.17vw, 19px);
+    --fs-body: clamp(13px, 1.09vw, 17px);
+
+    /* Largeur de la sidebar, également fluide. */
+    --sidebar-width: clamp(190px, 18.2vw, 320px);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
-  .shell { display: flex; max-width: 1160px; margin: 0 auto; min-height: 100vh; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+  /* Plus de conteneur centré à largeur fixe : la sidebar colle au bord gauche
+     de l'écran, et le contenu principal utilise tout l'espace restant, quelle
+     que soit la taille de l'écran. */
+  .shell { display: flex; width: 100%; min-height: 100vh; }
 
-  .sidebar { width: 233px; flex-shrink: 0; padding: var(--sp-5) var(--sp-3); border-right: 1px solid var(--border); }
+  .sidebar { width: var(--sidebar-width); flex-shrink: 0; padding: var(--sp-5) var(--sp-3); border-right: 1px solid var(--border); }
   .brand { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-6); padding-left: var(--sp-1); cursor: pointer; }
-  .brand-mark { width: 34px; height: 34px; flex-shrink: 0; }
-  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 21px; letter-spacing: -0.01em; }
+  .brand-mark { width: clamp(28px, 2.4vw, 44px); height: clamp(28px, 2.4vw, 44px); flex-shrink: 0; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: var(--fs-brand); letter-spacing: -0.01em; }
 
   .nav { display: flex; flex-direction: column; gap: 4px; }
   .nav-item { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2); border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: background 0.15s; }
@@ -55,29 +84,34 @@
 
   .main { flex: 1; padding: var(--sp-5) var(--sp-6); min-width: 0; }
   .topbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-4); }
-  .status { display: flex; align-items: center; gap: var(--sp-1); font-size: 13px; color: var(--text-secondary); font-weight: 500; background: var(--surface); border: 1px solid var(--border); padding: 6px 13px; border-radius: 100px; }
+  .status { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-body); color: var(--text-secondary); font-weight: 500; background: var(--surface); border: 1px solid var(--border); padding: 6px 13px; border-radius: 100px; }
   .status-dot { width: 6px; height: 6px; background: var(--positive); border-radius: 50%; }
 
-  .greeting { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: var(--sp-2); }
-  .greeting-sub { color: var(--text-secondary); font-size: 15px; margin-bottom: var(--sp-3); }
-  .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
+  .greeting { font-size: var(--fs-greeting); font-weight: 700; letter-spacing: -0.03em; margin-bottom: var(--sp-2); }
+  .greeting-sub { color: var(--text-secondary); font-size: var(--fs-body); margin-bottom: var(--sp-3); }
+  .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: var(--fs-body); font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
 
-  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  /* Grille des 5 cartes de la vue d'ensemble : le nombre de colonnes
+     s'ajuste tout seul et progressivement selon la largeur disponible
+     (5 sur grand écran, moins sur écran étroit, jamais plus petit que
+     minmax) — pas de palier fixe à définir à la main. Sur très petit écran,
+     un autre mode (scroll horizontal) prend le relais — voir plus bas. */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 18vw, 210px), 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; height: var(--sp-7); display: flex; flex-direction: column; justify-content: space-between; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
   .card.positive { background: var(--positive-bg); border: 1px solid var(--positive-border); }
-  .card-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-  .card-value { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .card-label { font-size: var(--fs-body); color: var(--text-secondary); font-weight: 500; }
+  .card-value { font-size: var(--fs-card-value); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .card.positive .card-value { color: var(--positive); }
   .card-delta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
   .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
   .panel-clickable:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
-  .panel-title { font-size: 15px; font-weight: 600; margin-bottom: var(--sp-3); display: flex; justify-content: space-between; align-items: center; gap: var(--sp-1); }
+  .panel-title { font-size: var(--fs-panel-title); font-weight: 600; margin-bottom: var(--sp-3); display: flex; justify-content: space-between; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
   .panel-title-left { display: flex; align-items: center; gap: var(--sp-1); }
   .panel-title.clickable { cursor: pointer; }
   .panel-tag { font-size: 12px; font-weight: 500; color: var(--text-secondary); background: var(--bg); padding: 4px 10px; border-radius: 100px; }
@@ -116,7 +150,7 @@
   .btn-add-ca:hover { background: var(--accent-dark); }
 
   .revenue-box { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
-  .revenue-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .revenue-value { font-size: var(--fs-revenue-value); font-weight: 700; letter-spacing: -0.02em; }
   .revenue-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
   .btn-primary { background: var(--accent); color: #FFFFFF; border: none; padding: 10px var(--sp-3); border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s; }
   .btn-primary:hover { background: var(--accent-dark); }
@@ -131,8 +165,8 @@
   .view.active-view { display: block; }
   .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: var(--sp-4); }
   .back-link:hover { color: var(--text); }
-  .detail-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-2); }
-  .detail-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: var(--sp-5); }
+  .detail-title { font-size: var(--fs-detail-title); font-weight: 700; letter-spacing: -0.02em; margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+  .detail-sub { color: var(--text-secondary); font-size: var(--fs-body); margin-bottom: var(--sp-5); }
 
   .settings-row { display: flex; justify-content: space-between; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   .settings-row:last-child { border-bottom: none; }
@@ -163,15 +197,54 @@
   .conv-stat-label { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
   .conv-pct { display: inline-flex; align-items: center; gap: 5px; background: var(--positive-bg); color: var(--positive); font-weight: 700; font-size: 13px; padding: 5px 12px; border-radius: 100px; margin-bottom: var(--sp-3); }
 
+  /* --- Téléphone / tablette : la sidebar se rétracte dans un menu hamburger --- */
   @media (max-width: 800px) {
     .sidebar { display: none; }
     .mobile-topbar { display: flex; }
     .main { padding: var(--sp-4) var(--sp-3); }
-    .grid { grid-template-columns: repeat(2, 1fr); }
-    .card:nth-child(5) { grid-column: 1 / -1; }
-    .greeting { font-size: 24px; }
-    .card { height: auto; min-height: 120px; }
     .form-grid { grid-template-columns: 1fr; }
+  }
+
+  /* --- Petit et moyen téléphone : les 5 cartes se parcourent en glissant
+     horizontalement (comme un carrousel) plutôt que d'être écrasées pour
+     toutes rentrer — chaque carte garde une largeur confortable et lisible,
+     on scrolle pour voir les suivantes. --- */
+  @media (max-width: 640px) {
+    .grid {
+      display: flex;
+      grid-template-columns: none;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: var(--sp-2);
+      margin-left: calc(var(--sp-3) * -1);
+      margin-right: calc(var(--sp-3) * -1);
+      padding-left: var(--sp-3);
+      padding-right: var(--sp-3);
+    }
+    .card {
+      flex: 0 0 auto;
+      width: min(72vw, 260px);
+      height: auto;
+      min-height: 130px;
+      scroll-snap-align: start;
+    }
+  }
+
+  /* --- Très petit écran (vieux téléphones, fenêtres très étroites) : encore
+     un peu plus compact, mais jamais en dessous des bornes "mini" des
+     variables fluides définies plus haut. --- */
+  @media (max-width: 360px) {
+    .main { padding: var(--sp-3) var(--sp-2); }
+    .card { width: 78vw; }
+  }
+
+  /* --- Très grand écran (moniteur large / 4K) : on laisse un peu plus de
+     respiration entre les cartes, la largeur de la sidebar et les tailles de
+     texte continuent de grandir via les variables fluides ci-dessus. --- */
+  @media (min-width: 1800px) {
+    .grid { gap: var(--sp-4); }
   }
 </style>
 </head>
