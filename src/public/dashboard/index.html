@@ -101,17 +101,20 @@
   .greeting-sub { color: var(--text-secondary); font-size: var(--fs-body); margin-bottom: var(--sp-3); }
   .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: var(--fs-body); font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
 
-  /* Grille des 5 cartes de la vue d'ensemble : volontairement 2 colonnes
-     fixes par défaut (téléphone, tablette, petit laptop), puis 5 colonnes
-     fixes à partir d'un écran assez large (voir @media min-width:1201px
-     plus bas). On évite exprès les paliers intermédiaires (3 ou 4
-     colonnes) : avec 5 cartes, ils laissent toujours une dernière ligne
-     incomplète calée à gauche avec un vide à droite — c'est cette
-     dernière ligne qui donnait l'impression de marges gauche/droite
-     inégales. Avec seulement 2 ou 5 colonnes (qui « tombent juste » sur 5
-     cartes, la 5e carte comblant la ligne impaire en 2 colonnes), chaque
-     ligne reste toujours parfaitement symétrique, à toutes les tailles. */
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-4); align-items: stretch; }
+  /* Grille des 5 cartes de la vue d'ensemble : paliers fixes de colonnes
+     (2 puis 3 puis 4 puis 5, voir les media queries plus bas) qui
+     grandissent avec la taille de l'écran. Quand 5 cartes ne remplissent
+     pas exactement la dernière ligne (5 n'est multiple ni de 2, 3 ou 4),
+     la carte n°5 comble elle-même toute la largeur restante de sa ligne
+     (grid-column: span N) au lieu de rester calée à gauche avec un vide à
+     droite — c'est ce qui garde des marges identiques des deux côtés de
+     chaque carte, quel que soit le nombre de colonnes affiché. */
+  /* L'écart entre les cartes (gap) est toujours réglé sur la même variable
+     que le padding horizontal de .main à cette taille d'écran (sp-6 ici en
+     desktop, sp-3 puis sp-2 dans les media queries plus bas) : l'espace
+     entre deux cartes et l'espace entre une carte et le bord de l'écran
+     sont donc toujours rigoureusement identiques, à toutes les tailles. */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-6); margin-bottom: var(--sp-4); align-items: stretch; }
 
   /* Rectangle proche du nombre d'or : la hauteur de chaque carte se déduit
      de sa largeur (largeur ÷ --card-ratio) au lieu d'être fixée séparément —
@@ -120,9 +123,9 @@
      Ordre de lecture fixe, de haut en bas : titre → courbe (uniquement sur
      les cartes qui en ont une) → gros chiffre → texte explicatif. */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
-  /* En grille 2 colonnes, la 5e carte (nombre impair) comble toute la
-     largeur de sa ligne au lieu de rester seule d'un côté. */
-  .card:nth-child(5) { grid-column: 1 / -1; aspect-ratio: calc(var(--card-ratio) * 2); }
+  /* Palier par défaut (2 ou 3 colonnes, voir @media plus bas) : la 5e carte
+     comble les 2 dernières colonnes de sa ligne. */
+  .card:nth-child(5) { grid-column: span 2; aspect-ratio: calc(var(--card-ratio) * 2); }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
@@ -230,15 +233,28 @@
     .sidebar { display: none; }
     .mobile-topbar { display: flex; }
     .main { padding: var(--sp-4) var(--sp-3); }
+    .grid { gap: var(--sp-3); }
     .form-grid { grid-template-columns: 1fr; }
   }
 
-  /* --- Écran assez large : la grille passe à 5 colonnes fixes (chaque carte
-     dans sa propre colonne, plus de carte qui comble une ligne impaire).
-     En dessous de ce seuil, la grille reste à 2 colonnes fixes (définie par
-     défaut plus haut) pour ne jamais passer par 3 ou 4 colonnes, qui
-     laisseraient une dernière ligne incomplète et donc asymétrique. --- */
-  @media (min-width: 1201px) {
+  /* --- Tablette / petit laptop : 3 colonnes. La 5e carte comble toujours
+     les 2 dernières colonnes de sa ligne (même règle qu'en 2 colonnes,
+     span 2 complète la ligne dans les deux cas). --- */
+  @media (min-width: 801px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* --- Laptop : 4 colonnes. La 5e carte, seule sur sa ligne, comble cette
+     fois les 4 colonnes pour rester bord à bord avec la ligne du dessus. --- */
+  @media (min-width: 1100px) {
+    .grid { grid-template-columns: repeat(4, 1fr); }
+    .card:nth-child(5) { grid-column: span 4; aspect-ratio: calc(var(--card-ratio) * 4); }
+  }
+
+  /* --- Grand écran : 5 colonnes, chaque carte dans la sienne — plus besoin
+     de combler une ligne impaire, 5 cartes remplissent exactement
+     5 colonnes. --- */
+  @media (min-width: 1400px) {
     .grid { grid-template-columns: repeat(5, 1fr); }
     .card:nth-child(5) { grid-column: auto; aspect-ratio: var(--card-ratio); }
   }
@@ -248,14 +264,14 @@
      variables fluides définies plus haut. --- */
   @media (max-width: 360px) {
     .main { padding: var(--sp-3) var(--sp-2); }
+    .grid { gap: var(--sp-2); }
   }
 
-  /* --- Très grand écran (moniteur large / 4K) : on laisse un peu plus de
-     respiration entre les cartes, la largeur de la sidebar et les tailles de
-     texte continuent de grandir via les variables fluides ci-dessus. --- */
-  @media (min-width: 1800px) {
-    .grid { gap: var(--sp-4); }
-  }
+  /* Au-delà de 1400px, la largeur de la sidebar et les tailles de texte
+     continuent de grandir via les variables fluides ci-dessus ; le gap de
+     la grille reste calé sur sp-6, donc toujours égal au padding de .main
+     à cette taille — pas de palier séparé nécessaire pour les très grands
+     écrans (moniteur large / 4K). */
 </style>
 </head>
 <body data-token="{{DASHBOARD_TOKEN}}">
