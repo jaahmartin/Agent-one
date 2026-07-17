@@ -164,7 +164,12 @@ async function dailyOutboundCounts(artisanId: string, days: number): Promise<num
 function trendCoords(counts: number[], width: number, height: number): Array<[number, number]> {
   const max = Math.max(1, ...counts);
   const step = counts.length > 1 ? width / (counts.length - 1) : width;
-  return counts.map((c, i) => [i * step, height - (c / max) * height] as [number, number]);
+  // Marge interne (haut/bas) : le lissage Catmull-Rom peut légèrement dépasser
+  // les points d'origine (overshoot). Sans cette marge, un pic ou un creux
+  // marqué se retrouve rogné par les bords de la zone d'affichage du SVG.
+  const pad = height * 0.16;
+  const usable = height - pad * 2;
+  return counts.map((c, i) => [i * step, pad + (1 - c / max) * usable] as [number, number]);
 }
 
 function smoothPath(points: Array<[number, number]>): string {
@@ -364,8 +369,16 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   const smsWeek = await countMessages(artisan.id, "out", weekStart, tomorrow);
   const smsMonth = await countMessages(artisan.id, "out", monthStart, tomorrow);
   const dailyCounts7 = await dailyOutboundCounts(artisan.id, 7);
-  const smsSparklinePath = smoothTrend(dailyCounts7, 200, 20);
+  const smsSparklinePath = smoothTrend(dailyCounts7, 200, 60);
   const smsDetailCurvePath = smoothTrend(dailyCounts7, 300, 60);
+  const sms7DayTotal = dailyCounts7.reduce((a, b) => a + b, 0);
+  const sms7DayAvg = Math.round((sms7DayTotal / dailyCounts7.length) * 10) / 10;
+  const sms7DayBest = Math.max(0, ...dailyCounts7);
+  const smsDetailStatsHtml = `<div class="conv-stat-row">
+    ${statBlock("", sms7DayTotal, "SMS envoyés sur 7 jours")}
+    ${statBlock("", sms7DayAvg, "Moyenne quotidienne")}
+    ${statBlock("", sms7DayBest, "Meilleur jour")}
+  </div>`;
 
   const missedCallsToday = await countLeadsCreated(artisan.id, today, tomorrow);
 
@@ -441,7 +454,7 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   // conversion" en vue d'ensemble, pour que la courbe résumée et la courbe
   // détaillée racontent toujours la même histoire.
   const evolutionTrend = smoothTrend(dailyCounts7, 300, 60);
-  const conversionSparklinePath = smoothTrend(dailyCounts7, 200, 20);
+  const conversionSparklinePath = smoothTrend(dailyCounts7, 200, 60);
   const evolutionHtml =
     evolutionBlock("today", smsToday, repliedToday, confirmedToday, evolutionTrend, "block") +
     evolutionBlock("week", smsWeek, repliedWeek, confirmedWeek, evolutionTrend, "none") +
@@ -458,6 +471,7 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     SMS_MONTH: String(smsMonth),
     SMS_SPARKLINE_PATH: smsSparklinePath,
     SMS_DETAIL_CURVE_PATH: smsDetailCurvePath,
+    SMS_DETAIL_STATS: smsDetailStatsHtml,
     CONVERSION_SPARKLINE_PATH: conversionSparklinePath,
     RDV_MONTH_COUNT: String(rdvMonthCount),
     CONVERSION_RATE: String(conversionRate),
