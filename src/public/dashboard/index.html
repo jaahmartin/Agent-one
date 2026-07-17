@@ -55,10 +55,11 @@
     /* Largeur de la sidebar, également fluide. */
     --sidebar-width: clamp(190px, 18.2vw, 320px);
 
-    /* Rapport largeur/hauteur des cartes : proche du nombre d'or (1,618) mais
-       légèrement réduit pour laisser de la place aux courbes en fond de
-       carte sans qu'elles ne soient jamais rognées en haut/bas. */
-    --card-ratio: 1.42;
+    /* Rapport largeur/hauteur des cartes : √φ (racine du nombre d'or, ≈1,272)
+       au lieu du rectangle d'or classique (1,618) — un cran plus haut, tout
+       en restant une valeur directement dérivée du nombre d'or, pour que le
+       titre, la courbe, le chiffre et le texte respirent davantage. */
+    --card-ratio: 1.272;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -111,14 +112,9 @@
      de sa largeur (largeur ÷ --card-ratio) au lieu d'être fixée séparément —
      la proportion reste identique quelle que soit la taille d'écran ou le
      nombre de colonnes.
-     Structure interne volontairement IDENTIQUE sur les 5 cartes (label, puis
-     valeur, puis delta, empilés depuis le haut) : c'est ce qui garantit que
-     les chiffres et les zones de texte tombent tous exactement à la même
-     hauteur d'une carte à l'autre. La courbe, quand il y en a une, est un
-     calque décoratif en arrière-plan (position absolute) qui ne participe
-     jamais à cette mise en page — donc une carte avec courbe et une carte
-     sans courbe restent parfaitement alignées. */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; overflow: hidden; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
+     Ordre de lecture fixe, de haut en bas : titre → courbe (uniquement sur
+     les cartes qui en ont une) → gros chiffre → texte explicatif. */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
@@ -127,7 +123,7 @@
   .card-value { font-size: var(--fs-card-value); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .card.positive .card-value { color: var(--positive); }
   .card-delta { font-size: 12px; color: var(--text-secondary); }
-  .card-curve-bg { position: absolute; left: var(--sp-3); right: var(--sp-3); bottom: var(--sp-3); height: 50%; pointer-events: none; }
+  .card-curve { display: block; width: 100%; height: clamp(24px, 3vw, 42px); }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
   .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
@@ -302,8 +298,8 @@
 
         <div class="grid">
           <div class="card" onclick="showView('sms')">
-            <svg class="card-curve-bg" viewBox="0 0 200 60" preserveAspectRatio="none"><path d="{{SMS_SPARKLINE_PATH}}" fill="none" stroke="var(--accent-tint-20)" stroke-width="3" stroke-linecap="round"/></svg>
             <div class="card-label">SMS envoyés</div>
+            <svg class="card-curve" viewBox="0 0 200 60" preserveAspectRatio="none"><path d="{{SMS_SPARKLINE_PATH}}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
             <div class="card-value">{{SMS_TODAY}}</div>
             <div class="card-delta">Semaine : {{SMS_WEEK}} · Mois : {{SMS_MONTH}}</div>
           </div>
@@ -318,8 +314,8 @@
             <div class="card-delta">À relancer, classés ou confirmés</div>
           </div>
           <div class="card positive" onclick="showView('conversion')">
-            <svg class="card-curve-bg" viewBox="0 0 200 60" preserveAspectRatio="none"><path d="{{CONVERSION_SPARKLINE_PATH}}" fill="none" stroke="var(--positive-border)" stroke-width="3" stroke-linecap="round"/></svg>
             <div class="card-label">Taux de conversion</div>
+            <svg class="card-curve" viewBox="0 0 200 60" preserveAspectRatio="none"><path d="{{CONVERSION_SPARKLINE_PATH}}" fill="none" stroke="var(--positive)" stroke-width="2" stroke-linecap="round"/></svg>
             <div class="card-value">{{CONVERSION_RATE}}%</div>
             <div class="card-delta">{{CONVERSION_DELTA}} vs mois dernier</div>
           </div>
