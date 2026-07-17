@@ -123,7 +123,10 @@
   .card-value { font-size: var(--fs-card-value); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .card.positive .card-value { color: var(--positive); }
   .card-delta { font-size: 12px; color: var(--text-secondary); }
-  .card-curve { display: block; width: 100%; height: clamp(24px, 3vw, 42px); }
+  /* Même hauteur, que la carte ait une vraie courbe (svg) ou un espace vide
+     (spacer) — c'est ce qui garde le gros chiffre et le texte à la même
+     position sur les 5 cartes, avec ou sans courbe. */
+  .card-curve, .card-curve-spacer { display: block; width: 100%; height: clamp(24px, 3vw, 42px); }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
   .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
@@ -305,11 +308,13 @@
           </div>
           <div class="card" onclick="showView('appointments')">
             <div class="card-label">Rendez-vous confirmés</div>
+            <div class="card-curve-spacer"></div>
             <div class="card-value" id="rdv-count-value">{{RDV_MONTH_COUNT}}</div>
             <div class="card-delta">Ce mois-ci</div>
           </div>
           <div class="card" onclick="showView('callbacks')">
             <div class="card-label">Sans suite</div>
+            <div class="card-curve-spacer"></div>
             <div class="card-value cb-badge" id="sans-suite-value">{{CALLBACK_COUNT}}</div>
             <div class="card-delta">À relancer, classés ou confirmés</div>
           </div>
@@ -321,6 +326,7 @@
           </div>
           <div class="card" onclick="showView('relances')">
             <div class="card-label">Relances</div>
+            <div class="card-curve-spacer"></div>
             <div class="card-value">{{REMINDERS_TODAY_COUNT}}</div>
             <div class="card-delta">Programmées aujourd'hui</div>
           </div>
@@ -361,9 +367,13 @@
         </div>
 
         <div class="panel">
-          <div class="panel-title">Évolution sur 7 jours</div>
-          <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none" style="margin-bottom: var(--sp-3);"><path d="{{SMS_DETAIL_CURVE_PATH}}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>
-          {{SMS_DETAIL_STATS}}
+          <div class="panel-title">Évolution</div>
+          <div class="conv-tabs" style="margin-top:0;">
+            <button class="conv-tab-btn sms-evol-tab-btn active" data-tab="today" onclick="showSmsEvolTab('today')">Aujourd'hui</button>
+            <button class="conv-tab-btn sms-evol-tab-btn" data-tab="week" onclick="showSmsEvolTab('week')">Cette semaine</button>
+            <button class="conv-tab-btn sms-evol-tab-btn" data-tab="month" onclick="showSmsEvolTab('month')">Ce mois-ci</button>
+          </div>
+          {{SMS_EVOLUTION_CONTENT}}
         </div>
       </div>
 

@@ -80,6 +80,11 @@ function addDays(date: Date, days: number): Date {
   d.setDate(d.getDate() + days);
   return d;
 }
+function addHours(date: Date, hours: number): Date {
+  const d = new Date(date);
+  d.setHours(d.getHours() + hours);
+  return d;
+}
 function startOfMonth(date = new Date()): Date {
   const d = new Date(date);
   d.setDate(1);
@@ -159,7 +164,21 @@ async function dailyOutboundCounts(artisanId: string, days: number): Promise<num
   return counts;
 }
 
-// ---------- Courbes lissées (Catmull-Rom -> Bézier, épaisseur de trait constante) ----------
+// Répartition heure par heure depuis minuit jusqu'à l'heure en cours (pour
+// l'onglet "Aujourd'hui" des courbes d'évolution).
+async function hourlyOutboundCountsToday(artisanId: string): Promise<number[]> {
+  const start = startOfDay();
+  const hoursElapsed = new Date().getHours() + 1;
+  const counts: number[] = [];
+  for (let h = 0; h < hoursElapsed; h++) {
+    const from = addHours(start, h);
+    const to = addHours(start, h + 1);
+    counts.push(await countMessages(artisanId, "out", from, to));
+  }
+  return counts;
+}
+
+// ---------- Courbes en lignes brisées (segments droits, épaisseur de trait constante) ----------
 
 function trendCoords(counts: number[], width: number, height: number): Array<[number, number]> {
   const max = Math.max(1, ...counts);
@@ -172,26 +191,17 @@ function trendCoords(counts: number[], width: number, height: number): Array<[nu
   return counts.map((c, i) => [i * step, pad + (1 - c / max) * usable] as [number, number]);
 }
 
-function smoothPath(points: Array<[number, number]>): string {
+function brokenPath(points: Array<[number, number]>): string {
   if (points.length === 0) return "";
-  if (points.length === 1) return `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
-  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? i : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
-    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-  }
-  return d;
+  const [first, ...rest] = points;
+  return (
+    `M${first[0].toFixed(1)},${first[1].toFixed(1)}` +
+    rest.map(([x, y]) => ` L${x.toFixed(1)},${y.toFixed(1)}`).join("")
+  );
 }
 
-function smoothTrend(counts: number[], width: number, height: number): string {
-  return smoothPath(trendCoords(counts, width, height));
+function trendPath(counts: number[], width: number, height: number): string {
+  return brokenPath(trendCoords(counts, width, height));
 }
 
 // ---------- Rendu des lignes HTML (réutilise la structure .person-row de la maquette) ----------
@@ -369,16 +379,12 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   const smsWeek = await countMessages(artisan.id, "out", weekStart, tomorrow);
   const smsMonth = await countMessages(artisan.id, "out", monthStart, tomorrow);
   const dailyCounts7 = await dailyOutboundCounts(artisan.id, 7);
-  const smsSparklinePath = smoothTrend(dailyCounts7, 200, 60);
-  const smsDetailCurvePath = smoothTrend(dailyCounts7, 300, 60);
-  const sms7DayTotal = dailyCounts7.reduce((a, b) => a + b, 0);
-  const sms7DayAvg = Math.round((sms7DayTotal / dailyCounts7.length) * 10) / 10;
-  const sms7DayBest = Math.max(0, ...dailyCounts7);
-  const smsDetailStatsHtml = `<div class="conv-stat-row">
-    ${statBlock("", sms7DayTotal, "SMS envoyés sur 7 jours")}
-    ${statBlock("", sms7DayAvg, "Moyenne quotidienne")}
-    ${statBlock("", sms7DayBest, "Meilleur jour")}
-  </div>`;
+  const dailyCounts30 = await dailyOutboundCounts(artisan.id, 30);
+  const hourlyCountsToday = await hourlyOutboundCountsToday(artisan.id);
+  const smsSparklinePath = trendPath(dailyCounts7, 200, 60);
+  const trendTodayPath = trendPath(hourlyCountsToday, 300, 60);
+  const trendWeekPath = trendPath(dailyCounts7, 300, 60);
+  const trendMonthPath = trendPath(dailyCounts30, 300, 60);
 
   const missedCallsToday = await countLeadsCreated(artisan.id, today, tomorrow);
 
@@ -448,17 +454,43 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
       </div>
     </div>`;
   }
-  // Même tendance sur 7 jours réutilisée pour les 3 onglets (approximation
-  // simple — pas d'historique horaire/hebdomadaire dédié pour l'instant).
-  // Cette même tendance alimente aussi la mini-courbe de la carte "Taux de
-  // conversion" en vue d'ensemble, pour que la courbe résumée et la courbe
-  // détaillée racontent toujours la même histoire.
-  const evolutionTrend = smoothTrend(dailyCounts7, 300, 60);
-  const conversionSparklinePath = smoothTrend(dailyCounts7, 200, 60);
+  // Chaque onglet a désormais sa propre courbe (heure par heure aujourd'hui,
+  // jour par jour sur la semaine/le mois) au lieu de réutiliser partout la
+  // même tendance sur 7 jours. Cette dernière alimente aussi la mini-courbe
+  // de la carte "Taux de conversion" en vue d'ensemble, pour que la courbe
+  // résumée et la courbe détaillée "Cette semaine" racontent la même histoire.
+  const conversionSparklinePath = trendPath(dailyCounts7, 200, 60);
   const evolutionHtml =
-    evolutionBlock("today", smsToday, repliedToday, confirmedToday, evolutionTrend, "block") +
-    evolutionBlock("week", smsWeek, repliedWeek, confirmedWeek, evolutionTrend, "none") +
-    evolutionBlock("month", smsMonth, repliedMonth, confirmedThisMonth, evolutionTrend, "none");
+    evolutionBlock("today", smsToday, repliedToday, confirmedToday, trendTodayPath, "block") +
+    evolutionBlock("week", smsWeek, repliedWeek, confirmedWeek, trendWeekPath, "none") +
+    evolutionBlock("month", smsMonth, repliedMonth, confirmedThisMonth, trendMonthPath, "none");
+
+  // --- Évolution des SMS envoyés (même logique de 3 onglets que ci-dessus) ---
+  function smsEvolBlock(
+    id: string,
+    curvePath: string,
+    counts: number[],
+    total: number,
+    totalLabel: string,
+    avgLabel: string,
+    bestLabel: string,
+    display: string,
+  ): string {
+    const avg = counts.length > 0 ? Math.round((total / counts.length) * 10) / 10 : 0;
+    const best = Math.max(0, ...counts);
+    return `<div class="conv-tab-content sms-evol-tab-content" id="sms-evol-${id}" style="display:${display};">
+      <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><path d="${curvePath}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div class="conv-stat-row">
+        ${statBlock("", total, totalLabel)}
+        ${statBlock("", avg, avgLabel)}
+        ${statBlock("", best, bestLabel)}
+      </div>
+    </div>`;
+  }
+  const smsEvolutionHtml =
+    smsEvolBlock("today", trendTodayPath, hourlyCountsToday, smsToday, "SMS envoyés aujourd'hui", "Moyenne par heure", "Meilleure heure", "block") +
+    smsEvolBlock("week", trendWeekPath, dailyCounts7, smsWeek, "SMS envoyés cette semaine", "Moyenne par jour", "Meilleur jour", "none") +
+    smsEvolBlock("month", trendMonthPath, dailyCounts30, smsMonth, "SMS envoyés ce mois-ci", "Moyenne par jour", "Meilleur jour", "none");
 
   // --- Assemblage final : remplacement des marqueurs ---
   const replacements: Record<string, string> = {
@@ -470,8 +502,7 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     SMS_WEEK: String(smsWeek),
     SMS_MONTH: String(smsMonth),
     SMS_SPARKLINE_PATH: smsSparklinePath,
-    SMS_DETAIL_CURVE_PATH: smsDetailCurvePath,
-    SMS_DETAIL_STATS: smsDetailStatsHtml,
+    SMS_EVOLUTION_CONTENT: smsEvolutionHtml,
     CONVERSION_SPARKLINE_PATH: conversionSparklinePath,
     RDV_MONTH_COUNT: String(rdvMonthCount),
     CONVERSION_RATE: String(conversionRate),

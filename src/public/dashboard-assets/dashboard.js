@@ -91,10 +91,16 @@ function showFunnelPeriod(id) {
   document.querySelector('.funnel-period-btn[data-fperiod="' + id + '"]').classList.add('active');
 }
 function showConvTab(id) {
-  document.querySelectorAll('.conv-tab-content').forEach(v => v.style.display = 'none');
+  document.querySelectorAll('.conv-tab-content:not(.sms-evol-tab-content)').forEach(v => v.style.display = 'none');
   document.getElementById('conv-' + id).style.display = 'block';
-  document.querySelectorAll('.conv-tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.conv-tab-btn[data-tab="' + id + '"]').classList.add('active');
+  document.querySelectorAll('.conv-tab-btn:not(.sms-evol-tab-btn)').forEach(b => b.classList.remove('active'));
+  document.querySelector('.conv-tab-btn[data-tab="' + id + '"]:not(.sms-evol-tab-btn)').classList.add('active');
+}
+function showSmsEvolTab(id) {
+  document.querySelectorAll('.sms-evol-tab-content').forEach(v => v.style.display = 'none');
+  document.getElementById('sms-evol-' + id).style.display = 'block';
+  document.querySelectorAll('.sms-evol-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.sms-evol-tab-btn[data-tab="' + id + '"]').classList.add('active');
 }
 document.addEventListener('click', function (e) {
   if (!e.target.closest('.export-btn') && !e.target.closest('.export-menu')) {
