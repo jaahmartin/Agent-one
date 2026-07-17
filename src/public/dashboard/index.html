@@ -36,20 +36,27 @@
     --sp-4: clamp(24px, 2.66vw, 46px);
     --sp-5: clamp(38px, 4.3vw, 74px);
     --sp-6: clamp(60px, 6.95vw, 120px);
-    --sp-7: clamp(110px, 11.25vw, 195px);
 
-    /* Tailles de texte fluides (mêmes bornes que les anciennes valeurs fixes,
-       calées à ~1280px de large). */
-    --fs-brand: clamp(17px, 1.64vw, 27px);
-    --fs-greeting: clamp(21px, 2.19vw, 36px);
-    --fs-card-value: clamp(24px, 2.66vw, 44px);
-    --fs-detail-title: clamp(19px, 1.88vw, 31px);
-    --fs-revenue-value: clamp(21px, 2.19vw, 36px);
-    --fs-panel-title: clamp(13px, 1.17vw, 19px);
-    --fs-body: clamp(13px, 1.09vw, 17px);
+    /* Échelle typographique basée sur le nombre d'or (φ ≈ 1,618) : chaque
+       palier vaut le précédent × √φ (≈1,272), donc deux paliers voisins
+       montent d'un "demi-pas" et deux paliers espacés d'un cran montent
+       exactement d'un facteur φ. Base = 14px (le corps de texte).
+       Ça garantit que tous les titres/sous-titres du même niveau partagent
+       exactement la même taille, et que les niveaux entre eux suivent tous
+       la même logique de proportion — pas de valeur choisie au hasard. */
+    --fs-body: clamp(13px, 1.09vw, 17px);              /* palier 0 : 14px  — paragraphes, sous-titres */
+    --fs-panel-title: clamp(15px, 1.39vw, 23px);        /* palier 0,5 : 14×√φ ≈ 17,8px — titres de section */
+    --fs-brand: clamp(19px, 1.77vw, 29px);              /* palier 1 : 14×φ ≈ 22,6px — wordmark, titres de page, total CA */
+    --fs-detail-title: clamp(19px, 1.77vw, 29px);
+    --fs-revenue-value: clamp(19px, 1.77vw, 29px);
+    --fs-greeting: clamp(24px, 2.25vw, 37px);           /* palier 1,5 : 14×φ×√φ ≈ 28,8px — chiffres "hero" */
+    --fs-card-value: clamp(24px, 2.25vw, 37px);
 
     /* Largeur de la sidebar, également fluide. */
     --sidebar-width: clamp(190px, 18.2vw, 320px);
+
+    /* Rapport largeur/hauteur des cartes = nombre d'or (rectangle d'or). */
+    --golden: 1.618;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -94,11 +101,14 @@
   /* Grille des 5 cartes de la vue d'ensemble : le nombre de colonnes
      s'ajuste tout seul et progressivement selon la largeur disponible
      (5 sur grand écran, moins sur écran étroit, jamais plus petit que
-     minmax) — pas de palier fixe à définir à la main. Sur très petit écran,
-     un autre mode (scroll horizontal) prend le relais — voir plus bas. */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 18vw, 210px), 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+     minmax) — pas de palier fixe à définir à la main. Sur téléphone
+     (≤640px), un palier fixe à 2 colonnes prend le relais — voir plus bas. */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 18vw, 210px), 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); align-items: stretch; }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; height: var(--sp-7); display: flex; flex-direction: column; justify-content: space-between; }
+  /* Rectangle d'or : la hauteur de chaque carte se déduit de sa largeur
+     (largeur ÷ 1,618) au lieu d'être fixée séparément — la proportion reste
+     identique quelle que soit la taille d'écran ou le nombre de colonnes. */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; aspect-ratio: var(--golden); display: flex; flex-direction: column; justify-content: space-between; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
@@ -107,6 +117,7 @@
   .card-value { font-size: var(--fs-card-value); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .card.positive .card-value { color: var(--positive); }
   .card-delta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .card-spark { display: block; width: 100%; height: clamp(14px, 1.8vw, 26px); margin-top: var(--sp-1); }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
   .panel-clickable { cursor: pointer; transition: box-shadow 0.15s; }
@@ -205,31 +216,14 @@
     .form-grid { grid-template-columns: 1fr; }
   }
 
-  /* --- Petit et moyen téléphone : les 5 cartes se parcourent en glissant
-     horizontalement (comme un carrousel) plutôt que d'être écrasées pour
-     toutes rentrer — chaque carte garde une largeur confortable et lisible,
-     on scrolle pour voir les suivantes. --- */
+  /* --- Petit et moyen téléphone : grille FIXE à 2 cartes par ligne (jamais
+     de glissement horizontal) — la 5e carte, seule sur sa ligne, prend toute
+     la largeur pour ne pas rester isolée d'un côté. Tout défile verticalement
+     avec le reste de la page, comme une liste normale de haut en bas. La
+     proportion "rectangle d'or" de chaque carte est conservée. --- */
   @media (max-width: 640px) {
-    .grid {
-      display: flex;
-      grid-template-columns: none;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scroll-snap-type: x proximity;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: var(--sp-2);
-      margin-left: calc(var(--sp-3) * -1);
-      margin-right: calc(var(--sp-3) * -1);
-      padding-left: var(--sp-3);
-      padding-right: var(--sp-3);
-    }
-    .card {
-      flex: 0 0 auto;
-      width: min(72vw, 260px);
-      height: auto;
-      min-height: 130px;
-      scroll-snap-align: start;
-    }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .card:nth-child(5) { grid-column: 1 / -1; aspect-ratio: calc(var(--golden) * 2); }
   }
 
   /* --- Très petit écran (vieux téléphones, fenêtres très étroites) : encore
@@ -237,7 +231,6 @@
      variables fluides définies plus haut. --- */
   @media (max-width: 360px) {
     .main { padding: var(--sp-3) var(--sp-2); }
-    .card { width: 78vw; }
   }
 
   /* --- Très grand écran (moniteur large / 4K) : on laisse un peu plus de
@@ -303,7 +296,7 @@
             <div>
               <div class="card-value">{{SMS_TODAY}}</div>
               <div class="card-delta">Semaine : {{SMS_WEEK}} · Mois : {{SMS_MONTH}}</div>
-              <svg width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none" style="margin-top:6px;"><polyline points="{{SMS_SPARKLINE_POINTS}}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>
+              <svg class="card-spark" viewBox="0 0 200 22" preserveAspectRatio="none"><path d="{{SMS_SPARKLINE_PATH}}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
             </div>
           </div>
           <div class="card" onclick="showView('appointments')">
@@ -316,7 +309,11 @@
           </div>
           <div class="card positive" onclick="showView('conversion')">
             <div class="card-label">Taux de conversion</div>
-            <div><div class="card-value">{{CONVERSION_RATE}}%</div><div class="card-delta">{{CONVERSION_DELTA}} vs mois dernier</div></div>
+            <div>
+              <div class="card-value">{{CONVERSION_RATE}}%</div>
+              <div class="card-delta">{{CONVERSION_DELTA}} vs mois dernier</div>
+              <svg class="card-spark" viewBox="0 0 200 22" preserveAspectRatio="none"><path d="{{CONVERSION_SPARKLINE_PATH}}" fill="none" stroke="var(--positive)" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
           </div>
           <div class="card" onclick="showView('relances')">
             <div class="card-label">Relances</div>
@@ -356,6 +353,11 @@
           <div class="settings-row"><span class="settings-label">Aujourd'hui</span><span class="settings-value">{{SMS_TODAY}} SMS</span></div>
           <div class="settings-row"><span class="settings-label">Cette semaine</span><span class="settings-value">{{SMS_WEEK}} SMS</span></div>
           <div class="settings-row"><span class="settings-label">Ce mois-ci</span><span class="settings-value">{{SMS_MONTH}} SMS</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Évolution sur 7 jours</div>
+          <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><path d="{{SMS_DETAIL_CURVE_PATH}}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>
         </div>
       </div>
 

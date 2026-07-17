@@ -159,12 +159,34 @@ async function dailyOutboundCounts(artisanId: string, days: number): Promise<num
   return counts;
 }
 
-function trendPoints(counts: number[], width: number, height: number): string {
+// ---------- Courbes lissées (Catmull-Rom -> Bézier, épaisseur de trait constante) ----------
+
+function trendCoords(counts: number[], width: number, height: number): Array<[number, number]> {
   const max = Math.max(1, ...counts);
   const step = counts.length > 1 ? width / (counts.length - 1) : width;
-  return counts
-    .map((c, i) => `${Math.round(i * step)},${Math.round(height - (c / max) * height)}`)
-    .join(" ");
+  return counts.map((c, i) => [i * step, height - (c / max) * height] as [number, number]);
+}
+
+function smoothPath(points: Array<[number, number]>): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+function smoothTrend(counts: number[], width: number, height: number): string {
+  return smoothPath(trendCoords(counts, width, height));
 }
 
 // ---------- Rendu des lignes HTML (réutilise la structure .person-row de la maquette) ----------
@@ -342,7 +364,8 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   const smsWeek = await countMessages(artisan.id, "out", weekStart, tomorrow);
   const smsMonth = await countMessages(artisan.id, "out", monthStart, tomorrow);
   const dailyCounts7 = await dailyOutboundCounts(artisan.id, 7);
-  const sparkline = trendPoints(dailyCounts7, 200, 20);
+  const smsSparklinePath = smoothTrend(dailyCounts7, 200, 20);
+  const smsDetailCurvePath = smoothTrend(dailyCounts7, 300, 60);
 
   const missedCallsToday = await countLeadsCreated(artisan.id, today, tomorrow);
 
@@ -401,9 +424,9 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     funnelBlock("week", smsWeek, repliedWeek, confirmedWeek, "none") +
     funnelBlock("month", smsMonth, repliedMonth, confirmedThisMonth, "none");
 
-  function evolutionBlock(id: string, sent: number, replied: number, confirmed: number, points: string, display: string): string {
+  function evolutionBlock(id: string, sent: number, replied: number, confirmed: number, curvePath: string, display: string): string {
     return `<div class="conv-tab-content" id="conv-${id}" style="display:${display};">
-      <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="3"/></svg>
+      <svg width="100%" height="60" viewBox="0 0 300 60" preserveAspectRatio="none"><path d="${curvePath}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>
       <div class="conv-stat-row">
         ${statBlock("", sent, "SMS envoyés")}
         ${statBlock("", replied, "SMS ayant obtenu une réponse")}
@@ -414,7 +437,11 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   }
   // Même tendance sur 7 jours réutilisée pour les 3 onglets (approximation
   // simple — pas d'historique horaire/hebdomadaire dédié pour l'instant).
-  const evolutionTrend = trendPoints(dailyCounts7, 300, 60);
+  // Cette même tendance alimente aussi la mini-courbe de la carte "Taux de
+  // conversion" en vue d'ensemble, pour que la courbe résumée et la courbe
+  // détaillée racontent toujours la même histoire.
+  const evolutionTrend = smoothTrend(dailyCounts7, 300, 60);
+  const conversionSparklinePath = smoothTrend(dailyCounts7, 200, 20);
   const evolutionHtml =
     evolutionBlock("today", smsToday, repliedToday, confirmedToday, evolutionTrend, "block") +
     evolutionBlock("week", smsWeek, repliedWeek, confirmedWeek, evolutionTrend, "none") +
@@ -429,7 +456,9 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     SMS_TODAY: String(smsToday),
     SMS_WEEK: String(smsWeek),
     SMS_MONTH: String(smsMonth),
-    SMS_SPARKLINE_POINTS: sparkline,
+    SMS_SPARKLINE_PATH: smsSparklinePath,
+    SMS_DETAIL_CURVE_PATH: smsDetailCurvePath,
+    CONVERSION_SPARKLINE_PATH: conversionSparklinePath,
     RDV_MONTH_COUNT: String(rdvMonthCount),
     CONVERSION_RATE: String(conversionRate),
     CONVERSION_DELTA: conversionDelta,
