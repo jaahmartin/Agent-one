@@ -113,7 +113,17 @@
      une forme proche du carré constante à toutes les tailles.
      Ordre de lecture fixe, de haut en bas : titre → courbe (uniquement sur
      les cartes qui en ont une) → gros chiffre → texte explicatif. */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
+  /* min-width:0 annule le "min-width:auto" par défaut des enfants de grille :
+     sans ça, le libellé le plus large d'une seule carte (ex: "Demande la
+     plus fréquente") élargit toute sa colonne au-delà de sa part équitable
+     de 1fr (colonne partagée par toutes les cartes à cette position, sur
+     toutes les lignes). overflow:hidden empêche en plus qu'une carte dont
+     le contenu a besoin d'un peu plus de hauteur que ne le prévoit
+     aspect-ratio ne grandisse aussi en LARGEUR pour garder le ratio (les
+     deux effets combinés réduisaient la marge de droite sur certaines
+     cartes). Vérifié : aucun texte n'est réellement rogné, tout tient dans
+     la hauteur donnée par aspect-ratio. */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; min-width: 0; overflow: hidden; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
