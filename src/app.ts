@@ -18,6 +18,7 @@ export function createApp() {
   app.use(express.json());
 
   app.use("/dashboard-assets", express.static(path.join(__dirname, "public", "dashboard-assets")));
+  app.use("/legal", express.static(path.join(__dirname, "public", "legal")));
 
   app.use("/health", healthRouter);
   app.use("/webhooks/voice", voiceRouter);

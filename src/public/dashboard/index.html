@@ -230,6 +230,13 @@
   .conv-stat-label { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
   .conv-pct { display: inline-flex; align-items: center; gap: 5px; background: var(--positive-bg); color: var(--positive); font-weight: 700; font-size: 13px; padding: 5px 12px; border-radius: 100px; margin-bottom: var(--sp-3); }
 
+  /* Pied de page légal (obligation LCEN/RGPD) : présent sur chaque vue du
+     dashboard puisque placé hors des conteneurs .view, en discret, jamais
+     plus visible que le contenu principal. */
+  .legal-footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: var(--sp-5); padding-top: var(--sp-3); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
+  .legal-footer a { color: var(--text-secondary); text-decoration: none; }
+  .legal-footer a:hover { color: var(--text); text-decoration: underline; }
+
   /* --- Téléphone / tablette : la sidebar se rétracte dans un menu hamburger --- */
   @media (max-width: 800px) {
     .sidebar { display: none; }
@@ -543,6 +550,14 @@
           <div class="settings-row"><span class="settings-label">Téléphone</span><span class="settings-value">06 XX XX XX XX</span></div>
           <div class="settings-row"><span class="settings-label">Email</span><span class="settings-value">contact@fenn.fr</span></div>
         </div>
+      </div>
+
+      <div class="legal-footer">
+        <a href="/legal/mentions-legales.html">Mentions légales</a>
+        <span>·</span>
+        <a href="/legal/confidentialite.html">Politique de confidentialité</a>
+        <span>·</span>
+        <a href="/legal/cgu-cgv.html">CGU/CGV</a>
       </div>
 
     </div>
