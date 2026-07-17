@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import path from "path";
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { leads, messages, type artisans } from "../db/schema";
 import {
@@ -134,6 +134,29 @@ async function countConfirmedLeads(artisanId: string, from: Date, to: Date): Pro
       ),
     );
   return Number(row?.count ?? 0);
+}
+
+// Répartition des demandes par type (problem_type) sur une période, du plus
+// fréquent au moins fréquent. Regroupement par texte exact : suffisant pour
+// la démo (types déjà propres dans le jeu de données de seed) mais à
+// affiner plus tard pour de vrais artisans, où problem_type est du texte
+// libre extrait par Claude (formulations variées d'un même problème).
+async function problemTypeBreakdown(artisanId: string, from: Date, to: Date): Promise<Array<{ problemType: string; count: number }>> {
+  const db = getDb();
+  const rows = await db
+    .select({ problemType: leads.problemType, count: sql<string>`count(*)` })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.artisanId, artisanId),
+        gte(leads.createdAt, from),
+        lt(leads.createdAt, to),
+        isNotNull(leads.problemType),
+      ),
+    )
+    .groupBy(leads.problemType)
+    .orderBy(sql`count(*) desc`);
+  return rows.map((r) => ({ problemType: r.problemType ?? "Non renseigné", count: Number(r.count) }));
 }
 
 async function countDistinctLeadsWithInboundMessage(artisanId: string, from: Date, to: Date): Promise<number> {
@@ -398,6 +421,22 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
   const conversionDeltaValue = conversionRate - conversionRateLastMonth;
   const conversionDelta = `${conversionDeltaValue >= 0 ? "+" : ""}${conversionDeltaValue}%`;
 
+  // --- Demande la plus fréquente (répartition des types de demande du mois) ---
+  const problemBreakdown = await problemTypeBreakdown(artisan.id, monthStart, tomorrow);
+  const topProblem = problemBreakdown[0];
+  const topProblemPct =
+    topProblem && totalLeadsThisMonth > 0 ? Math.round((topProblem.count / totalLeadsThisMonth) * 100) : 0;
+  const topProblemLabel = topProblem ? escapeHtml(topProblem.problemType) : "Aucune donnée";
+  const topProblemSub = topProblem ? `${topProblemPct}% des demandes ce mois-ci` : "Aucune demande ce mois-ci";
+  const problemBreakdownRows =
+    problemBreakdown
+      .map((p) => {
+        const pct = totalLeadsThisMonth > 0 ? Math.round((p.count / totalLeadsThisMonth) * 100) : 0;
+        return `<div class="settings-row"><span class="settings-label">${escapeHtml(p.problemType)}</span><span class="settings-value">${pct}% (${p.count})</span></div>`;
+      })
+      .join("") ||
+    `<div class="settings-row" style="border:none;"><span class="settings-label">Aucune demande enregistrée ce mois-ci.</span></div>`;
+
   // Délai moyen d'envoi (raccroché -> SMS) : première réponse "out" après création du lead.
   const recentLeadsWithMessage = callbackLeads.concat(manuallyConfirmed).slice(0, 3);
   let avgDelayLabel = "Aucune donnée pour l'instant";
@@ -507,6 +546,9 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     RDV_MONTH_COUNT: String(rdvMonthCount),
     CONVERSION_RATE: String(conversionRate),
     CONVERSION_DELTA: conversionDelta,
+    TOP_PROBLEM_LABEL: topProblemLabel,
+    TOP_PROBLEM_SUB: topProblemSub,
+    PROBLEM_BREAKDOWN_ROWS: problemBreakdownRows,
     REMINDERS_TODAY_COUNT: String(todayReminders.length),
     OVERVIEW_CALLBACK_ROWS: overviewCallbackHtml || "<div><i>Aucun contact à rappeler.</i></div>",
     REVENUE_TOTAL: formatEuros(revenueTotalCents),

@@ -55,11 +55,18 @@
     /* Largeur de la sidebar, également fluide. */
     --sidebar-width: clamp(190px, 18.2vw, 320px);
 
-    /* Rapport largeur/hauteur des cartes : √φ (racine du nombre d'or, ≈1,272)
-       au lieu du rectangle d'or classique (1,618) — un cran plus haut, tout
-       en restant une valeur directement dérivée du nombre d'or, pour que le
-       titre, la courbe, le chiffre et le texte respirent davantage. */
-    --card-ratio: 1.272;
+    /* Rapport largeur/hauteur des cartes : proche du carré, sans l'être
+       totalement, pour un rendu plus compact que le rectangle d'or utilisé
+       jusqu'ici. */
+    --card-ratio: 1.15;
+
+    /* Largeur min/max d'une carte : entre ces deux bornes, chaque carte
+       grandit fluidement avec l'écran ; une fois --card-max atteinte, une
+       colonne supplémentaire apparaît automatiquement (comportement natif
+       de la grille en Flexbox ci-dessous, jamais de palier fixe à définir
+       à la main). */
+    --card-min: 210px;
+    --card-max: 280px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -101,31 +108,39 @@
   .greeting-sub { color: var(--text-secondary); font-size: var(--fs-body); margin-bottom: var(--sp-3); }
   .today-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-tint-10); color: var(--accent); font-size: var(--fs-body); font-weight: 600; padding: 8px 16px; border-radius: 100px; margin-bottom: var(--sp-5); }
 
-  /* Grille des 5 cartes de la vue d'ensemble : paliers fixes de colonnes
-     (2 puis 3 puis 4 puis 5, voir les media queries plus bas) qui
-     grandissent avec la taille de l'écran. Quand 5 cartes ne remplissent
-     pas exactement la dernière ligne (5 n'est multiple ni de 2, 3 ou 4),
-     la carte n°5 comble elle-même toute la largeur restante de sa ligne
-     (grid-column: span N) au lieu de rester calée à gauche avec un vide à
-     droite — c'est ce qui garde des marges identiques des deux côtés de
-     chaque carte, quel que soit le nombre de colonnes affiché. */
-  /* L'écart entre les cartes (gap) est toujours réglé sur la même variable
-     que le padding horizontal de .main à cette taille d'écran (sp-6 ici en
-     desktop, sp-3 puis sp-2 dans les media queries plus bas) : l'espace
-     entre deux cartes et l'espace entre une carte et le bord de l'écran
-     sont donc toujours rigoureusement identiques, à toutes les tailles. */
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-6); margin-bottom: var(--sp-4); align-items: stretch; }
+  /* Grille des cartes de la vue d'ensemble, en Flexbox plutôt qu'en CSS
+     Grid : chaque carte grandit fluidement entre --card-min et --card-max
+     (comportement natif du flex-wrap, aucun palier fixe à définir à la
+     main) ; une fois --card-max atteinte, la carte suivante n'a plus la
+     place et une colonne supplémentaire apparaît toute seule à la ligne.
+     max-width plafonne le nombre de colonnes à 4 même sur un écran très
+     large (au-delà, l'espace en trop reste vide de part et d'autre plutôt
+     que d'ajouter une 5e colonne). justify-content:center + margin:auto
+     centrent la grille (et, avec flex-wrap, chaque ligne — y compris une
+     dernière ligne incomplète — individuellement) : contrairement à CSS
+     Grid, une carte seule sur la dernière ligne se retrouve centrée avec
+     une marge égale des deux côtés, jamais collée à gauche. Le gap est
+     toujours réglé sur la même variable que le padding horizontal de
+     .main à cette taille d'écran (sp-6 ici en desktop, sp-3 puis sp-2
+     dans les media queries plus bas) : l'espace entre deux cartes et
+     l'espace entre une carte et le bord de l'écran restent donc toujours
+     rigoureusement identiques. */
+  .grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: var(--sp-6);
+    max-width: calc(4 * var(--card-max) + 3 * 120px);
+    margin: 0 auto var(--sp-4);
+  }
 
-  /* Rectangle proche du nombre d'or : la hauteur de chaque carte se déduit
-     de sa largeur (largeur ÷ --card-ratio) au lieu d'être fixée séparément —
-     la proportion reste identique quelle que soit la taille d'écran ou le
-     nombre de colonnes.
+  /* Chaque carte grandit entre --card-min et --card-max ; aspect-ratio
+     déduit la hauteur de la largeur réellement obtenue, pour une forme
+     proche du carré constante à toutes les tailles.
      Ordre de lecture fixe, de haut en bas : titre → courbe (uniquement sur
      les cartes qui en ont une) → gros chiffre → texte explicatif. */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
-  /* Palier par défaut (2 ou 3 colonnes, voir @media plus bas) : la 5e carte
-     comble les 2 dernières colonnes de sa ligne. */
-  .card:nth-child(5) { grid-column: span 2; aspect-ratio: calc(var(--card-ratio) * 2); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-3); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; position: relative; flex: 1 1 var(--card-min); max-width: var(--card-max); aspect-ratio: var(--card-ratio); display: flex; flex-direction: column; gap: var(--sp-1); }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); border-color: #C2C2C8; }
   .card::after { content: "→"; position: absolute; top: var(--sp-3); right: var(--sp-3); color: var(--text-secondary); opacity: 0; transition: opacity 0.15s; font-size: 14px; }
   .card:hover::after { opacity: 1; }
@@ -133,10 +148,14 @@
   .card-label { font-size: var(--fs-body); color: var(--text-secondary); font-weight: 500; }
   .card-value { font-size: var(--fs-card-value); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .card.positive .card-value { color: var(--positive); }
+  /* Valeur textuelle (ex: nom d'une catégorie) plutôt que numérique : taille
+     réduite pour rester lisible et ne pas déborder d'une carte quasi-carrée,
+     tout en gardant un palier déjà existant de l'échelle nombre d'or. */
+  .card-value.card-value-text { font-size: var(--fs-panel-title); line-height: 1.2; }
   .card-delta { font-size: 12px; color: var(--text-secondary); }
   /* Même hauteur, que la carte ait une vraie courbe (svg) ou un espace vide
      (spacer) — c'est ce qui garde le gros chiffre et le texte à la même
-     position sur les 5 cartes, avec ou sans courbe. */
+     position sur toutes les cartes, avec ou sans courbe. */
   .card-curve, .card-curve-spacer { display: block; width: 100%; height: clamp(24px, 3vw, 42px); }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: var(--sp-4); margin-bottom: var(--sp-3); }
@@ -237,28 +256,6 @@
     .form-grid { grid-template-columns: 1fr; }
   }
 
-  /* --- Tablette / petit laptop : 3 colonnes. La 5e carte comble toujours
-     les 2 dernières colonnes de sa ligne (même règle qu'en 2 colonnes,
-     span 2 complète la ligne dans les deux cas). --- */
-  @media (min-width: 801px) {
-    .grid { grid-template-columns: repeat(3, 1fr); }
-  }
-
-  /* --- Laptop : 4 colonnes. La 5e carte, seule sur sa ligne, comble cette
-     fois les 4 colonnes pour rester bord à bord avec la ligne du dessus. --- */
-  @media (min-width: 1100px) {
-    .grid { grid-template-columns: repeat(4, 1fr); }
-    .card:nth-child(5) { grid-column: span 4; aspect-ratio: calc(var(--card-ratio) * 4); }
-  }
-
-  /* --- Grand écran : 5 colonnes, chaque carte dans la sienne — plus besoin
-     de combler une ligne impaire, 5 cartes remplissent exactement
-     5 colonnes. --- */
-  @media (min-width: 1400px) {
-    .grid { grid-template-columns: repeat(5, 1fr); }
-    .card:nth-child(5) { grid-column: auto; aspect-ratio: var(--card-ratio); }
-  }
-
   /* --- Très petit écran (vieux téléphones, fenêtres très étroites) : encore
      un peu plus compact, mais jamais en dessous des bornes "mini" des
      variables fluides définies plus haut. --- */
@@ -353,6 +350,12 @@
             <div class="card-curve-spacer"></div>
             <div class="card-value">{{REMINDERS_TODAY_COUNT}}</div>
             <div class="card-delta">Programmées aujourd'hui</div>
+          </div>
+          <div class="card" onclick="showView('demandes')">
+            <div class="card-label">Demande la plus fréquente</div>
+            <div class="card-curve-spacer"></div>
+            <div class="card-value card-value-text">{{TOP_PROBLEM_LABEL}}</div>
+            <div class="card-delta">{{TOP_PROBLEM_SUB}}</div>
           </div>
         </div>
 
@@ -516,6 +519,18 @@
 
           <div class="relance-tab-content" id="relance-today">{{REMINDERS_TODAY_ROWS}}</div>
           <div class="relance-tab-content" id="relance-upcoming" style="display:none;">{{REMINDERS_UPCOMING_ROWS}}</div>
+        </div>
+      </div>
+
+      <!-- DEMANDE LA PLUS FREQUENTE -->
+      <div class="view" id="view-demandes">
+        <div class="back-link" onclick="showView('overview')">← Retour</div>
+        <div class="detail-title">Demande la plus fréquente</div>
+        <div class="detail-sub">Les types de demande reçus ce mois-ci, du plus fréquent au moins fréquent — pour ajuster votre offre si besoin.</div>
+
+        <div class="panel">
+          <div class="panel-title">Répartition par type de demande</div>
+          {{PROBLEM_BREAKDOWN_ROWS}}
         </div>
       </div>
 
