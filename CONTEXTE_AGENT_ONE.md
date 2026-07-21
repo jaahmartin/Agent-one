@@ -171,6 +171,32 @@ L'artisan peut ajouter de nouvelles prestations à son propre Agent One sans jam
 
 Même si le dashboard n'est pas un site public indexé (accès via lien privé uniquement), le RGPD s'applique dès qu'il y a traitement de données personnelles — c'est le cas ici (coordonnées de l'artisan + données de ses clients finaux, des tiers). Prévoir en bas de chaque page du dashboard, en petit : lien "Mentions légales", lien "Politique de confidentialité", lien "CGU/CGV". Contenu exact à rédiger et à faire relire par un professionnel avant publication réelle — ne pas publier de version non vérifiée. Point lié à la question de vigilance n°1 (responsabilité juridique) et n°4 (RGPD, données de tiers) listées plus haut. Clarifier aussi dans le contrat Fenn/artisan (pas seulement sur le dashboard) que l'artisan reste responsable du traitement des données de ses propres clients, Fenn agissant comme sous-traitant.
 
+## Espace admin Fenn — jamais transmis à Claude Code jusqu'ici, à intégrer maintenant
+
+En plus du dashboard artisan, un espace admin séparé existe pour Mathéo, avec un accès distinct (email + mot de passe, sécurité renforcée par rapport aux liens privés des artisans — voir "Architecture d'accès" ci-dessous). Prototype de référence : `fenn-espace-admin-mobile-v3.html` (format mobile, à transmettre à Claude Code avec ce fichier de contexte).
+
+### Architecture d'accès (rappel de la logique déjà actée)
+
+- Chaque artisan reçoit un lien unique et privé (type `fenn.app/d/[code]-nom-artisan`) donnant accès uniquement à son propre dashboard — pas de mot de passe à retenir
+- Mathéo a un accès admin séparé et plus sécurisé (email + mot de passe), donnant accès à l'espace décrit ci-dessous, avec visibilité sur tous les artisans
+
+### Contenu de l'espace admin
+
+- **Vue d'ensemble globale** : statistiques tous clients confondus (nombre de clients actifs, CA total généré, RDV confirmés, taux de conversion moyen), chacune cliquable vers un détail par client
+- **Liste des clients** : tous les artisans Fenn, avec statut (actif/en pause/en attente), CA du mois, accès à leur profil
+- **Bouton d'ajout de client (icône "+")** : présent à la fois sur la vue d'ensemble et sur la liste des clients. Créer un nouveau client génère une fiche en statut "en attente" (peut être annulée/supprimée) et ouvre directement son profil pour complétion
+- **Profil client (admin)** : informations modifiables (nom, métier), gestion de l'abonnement (mettre en pause/réactiver/supprimer), lien d'accès unique avec copie rapide, notes internes libres, liste de tâches à faire propres à ce client
+- **Labo Agent One (section critique, quasi-prioritaire selon Mathéo)** : l'endroit où Mathéo teste, forme et améliore Agent One avant tout déploiement réel chez un client. Contenu :
+  - Sélecteur du client dont on veut tester la configuration (chaque client a son propre "cerveau"/config, voir principe d'isolation des données)
+  - **Test de conversation** : un simulateur de chat où Mathéo tape un message "comme un client" et voit la réponse générée par Agent One pour la configuration du client sélectionné, avant que ça ne soit jamais utilisé en réel. Doit permettre de signaler un problème sur une réponse précise (pour garder une trace des corrections à faire)
+  - **Compétences (skills)** : liste des prestations/vocabulaire connus d'un client donné, avec possibilité d'ajouter une compétence directement depuis l'admin (même logique que la fonctionnalité côté artisan, mais pilotable aussi par Mathéo)
+  - **Ton & style** : réglages de la personnalité conversationnelle d'Agent One (curseurs du type formel/décontracté, concis/détaillé, réservé/chaleureux), ajustables par client
+  - **Problèmes signalés** : historique des problèmes de comportement détectés en test ou en réel, avec statut ouvert/résolu
+
+### Ce que ça implique techniquement pour le moteur conversationnel en cours de construction
+
+Le moteur conversationnel d'Agent One doit être conçu pour être **testable en environnement simulé avant tout envoi réel de SMS** — c'est-à-dire qu'il doit pouvoir être invoqué avec un message d'entrée fictif et une configuration client donnée, et renvoyer la réponse générée, sans jamais réellement passer par Twilio ni toucher à un vrai client, pour que le labo Agent One puisse s'en servir. Prévoir cette séparation (logique de génération de réponse vs. logique d'envoi réel) dès la construction du moteur, pas comme un ajout après coup.
+
 ## Setup en cours côté Mathéo
 
 - Abonnement Claude Pro actif, Claude Code installé et fonctionnel dans le Terminal macOS, dossier de travail : `~/Documents/AgentOne`

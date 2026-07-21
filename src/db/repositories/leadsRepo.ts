@@ -2,7 +2,12 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
 import { getDb } from "../client";
 import { leads } from "../schema";
 
-const TERMINAL_STATUSES = ["perdu", "termine"] as const;
+// "confirme" est volontairement inclus ici : Agent One ne déplace jamais un
+// rendez-vous déjà confirmé pour en insérer un nouveau (voir
+// CONTEXTE_AGENT_ONE.md, "Capacités réelles d'Agent ONE"). Un nouveau SMS
+// du même client après confirmation ouvre donc un lead tout neuf plutôt que
+// de rouvrir/modifier celui déjà confirmé.
+const TERMINAL_STATUSES = ["confirme", "perdu", "termine"] as const;
 
 /**
  * Récupère le lead en cours pour ce client (s'il existe déjà une

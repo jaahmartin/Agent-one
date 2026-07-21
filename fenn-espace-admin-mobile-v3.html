@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Fenn — Espace Admin V3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap');
+  :root {
+    color-scheme: light;
+    --bg: #F5F5F7; --surface: #FFFFFF; --border: #D2D2D7;
+    --text: #1D1D1F; --text-secondary: #6E6E73;
+    --accent: #0C00B6; --accent-dark: #0A009B; --accent-tint-10: #E7E6F8;
+    --positive: #229955; --positive-bg: #E3F6EA;
+    --alert: #D64545; --alert-bg: #FBEAEA;
+    --pending: #B8860B; --pending-bg: #FBF3E0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body { background:#e5e5e7; font-family:-apple-system,'Inter',sans-serif; display:flex; justify-content:center; padding:40px 20px; }
+
+  .phone { width:390px; height:844px; background:#000; border-radius:55px; padding:14px; box-shadow:0 30px 60px rgba(0,0,0,0.25); position:relative; flex-shrink:0; }
+  .screen { width:100%; height:100%; background:var(--bg); border-radius:42px; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px; background:#000; border-radius:0 0 20px 20px; z-index:30; }
+  .statusbar { display:flex; justify-content:space-between; align-items:center; padding:16px 26px 4px; font-size:15px; font-weight:600; }
+
+  .app { flex:1; overflow-y:auto; padding:0 18px 90px; }
+  .app::-webkit-scrollbar { display:none; }
+
+  .header { padding:8px 0 14px; }
+  .header-top { display:flex; justify-content:space-between; align-items:center; }
+  .brand-mini { display:flex; align-items:center; gap:6px; }
+  .brand-mark { width:20px; height:20px; }
+  .brand-name-mini { font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; }
+  .admin-chip { font-size:10px; font-weight:600; color:var(--accent); background:var(--accent-tint-10); padding:2px 8px; border-radius:100px; }
+  .large-title { font-size:26px; font-weight:700; letter-spacing:-0.03em; margin-top:6px; }
+
+  .view { display:none; }
+  .view.active-view { display:block; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .stat-card { background:var(--surface); border-radius:20px; padding:14px; aspect-ratio:1.05/1; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .stat-card:active { transform:scale(0.97); }
+  .stat-label { font-size:12px; color:var(--text-secondary); font-weight:500; }
+  .stat-value { font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+  .stat-delta { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+
+  .section-title { font-size:13px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; margin:18px 4px 8px; }
+
+  .client-card { background:var(--surface); border-radius:16px; padding:14px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .client-card:active { transform:scale(0.98); }
+  .client-name { font-weight:600; font-size:15px; }
+  .client-meta { font-size:12.5px; color:var(--text-secondary); margin-top:2px; }
+  .status-pill { font-size:11px; font-weight:600; padding:3px 9px; border-radius:100px; }
+  .status-pill.active { background:var(--positive-bg); color:var(--positive); }
+  .status-pill.paused { background:var(--bg); color:var(--text-secondary); }
+  .status-pill.pending { background:var(--pending-bg); color:var(--pending); }
+  .client-right { text-align:right; }
+  .client-amount { font-size:14px; font-weight:600; margin-top:4px; }
+
+  .fab { position:absolute; bottom:100px; right:22px; width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; box-shadow:0 6px 16px rgba(12,0,182,0.35); z-index:15; cursor:pointer; }
+
+  .back-row { display:flex; align-items:center; gap:4px; color:var(--accent); font-size:16px; font-weight:500; margin-bottom:8px; padding-top:4px; cursor:pointer; }
+  .detail-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+  .detail-row:last-child { border-bottom:none; }
+  .detail-list { background:var(--surface); border-radius:16px; padding:4px 14px; margin-bottom:14px; }
+
+  .tabbar { position:absolute; bottom:0; left:0; right:0; height:82px; background:rgba(255,255,255,0.92); backdrop-filter:blur(10px); border-top:1px solid var(--border); display:flex; z-index:20; }
+  .tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding-bottom:14px; color:var(--text-secondary); font-size:10.5px; font-weight:500; cursor:pointer; }
+  .tab.active { color:var(--accent); }
+  .tab svg { width:22px; height:22px; }
+
+  .btn-primary { background:var(--accent); color:#fff; border:none; padding:11px 18px; border-radius:100px; font-family:inherit; font-weight:600; font-size:14px; width:100%; margin-top:8px; }
+  .btn-secondary { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:11px 18px; border-radius:100px; font-family:inherit; font-weight:600; font-size:14px; width:100%; margin-top:8px; }
+  .btn-danger { background:var(--alert-bg); border:none; color:var(--alert); padding:11px 18px; border-radius:100px; font-family:inherit; font-weight:600; font-size:14px; width:100%; margin-top:8px; }
+  input[type=text], textarea { width:100%; font-family:inherit; font-size:14px; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); margin-bottom:8px; }
+
+  /* Globe stylise */
+  .globe-panel { background:radial-gradient(circle at 30% 25%, #14173a, #05061a 70%); border-radius:20px; height:200px; position:relative; overflow:hidden; margin-bottom:16px; }
+  .globe-sphere { position:absolute; top:20px; left:50%; transform:translateX(-50%); width:160px; height:160px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a2f6e, #0a0c24 75%); box-shadow:inset 0 0 30px rgba(90,140,255,0.25); }
+  .globe-grid { position:absolute; top:20px; left:50%; transform:translateX(-50%); width:160px; height:160px; border-radius:50%; }
+  .globe-grid ellipse { fill:none; stroke:rgba(120,150,255,0.25); stroke-width:1; }
+  .globe-dots { position:absolute; top:20px; left:50%; width:160px; height:160px; transform-origin:center; animation:spin 14s linear infinite; }
+  @keyframes spin { from { transform:translateX(-50%) rotate(0deg); } to { transform:translateX(-50%) rotate(360deg); } }
+  .dot { position:absolute; width:5px; height:5px; border-radius:50%; background:#7aa2ff; box-shadow:0 0 8px 2px rgba(122,162,255,0.9); }
+  .globe-caption { position:absolute; bottom:10px; left:14px; font-size:11px; color:#9aa5d8; }
+
+  /* Chat simulateur */
+  .chat-box { background:var(--surface); border-radius:16px; padding:12px; min-height:220px; margin-bottom:10px; }
+  .bubble { max-width:80%; padding:9px 13px; border-radius:16px; font-size:13.5px; margin-bottom:8px; line-height:1.4; }
+  .bubble.client { background:var(--bg); align-self:flex-start; border-bottom-left-radius:4px; }
+  .bubble.agent { background:var(--accent-tint-10); color:var(--accent); margin-left:auto; border-bottom-right-radius:4px; }
+  .bubble-row { display:flex; }
+  .flag-link { font-size:11px; color:var(--alert); text-align:right; margin-top:-4px; margin-bottom:8px; cursor:pointer; }
+
+  .pill-select { display:flex; gap:8px; overflow-x:auto; margin-bottom:14px; padding-bottom:4px; }
+  .pill-select span { flex-shrink:0; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:100px; background:var(--surface); border:1px solid var(--border); color:var(--text-secondary); cursor:pointer; }
+  .pill-select span.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .nav-card { background:var(--surface); border-radius:16px; padding:14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .nav-card:active { transform:scale(0.98); }
+  .nav-card-title { font-weight:600; font-size:14.5px; }
+  .nav-card-sub { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+
+  .slider-row { margin-bottom:16px; }
+  .slider-labels { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:4px; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+
+  .task-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .task-item:last-child { border-bottom:none; }
+  .task-item input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><span>●●●  📶  🔋</span></div>
+
+    <div class="app" id="app">
+
+      <!-- VUE D'ENSEMBLE -->
+      <div class="view active-view" id="view-overview">
+        <div class="header">
+          <div class="header-top">
+            <div class="brand-mini">
+              <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+              <span class="brand-name-mini">Fenn</span>
+            </div>
+            <span class="admin-chip">Admin</span>
+          </div>
+          <div class="large-title">Vue d'ensemble</div>
+        </div>
+
+        <div class="grid2">
+          <div class="stat-card" onclick="showView('detail-clients')">
+            <div class="stat-label">Clients actifs</div>
+            <div><div class="stat-value">4</div><div class="stat-delta">+1 ce mois-ci</div></div>
+          </div>
+          <div class="stat-card" onclick="showView('detail-ca')">
+            <div class="stat-label">CA généré</div>
+            <div><div class="stat-value">18 420€</div><div class="stat-delta">Ce mois-ci</div></div>
+          </div>
+          <div class="stat-card" onclick="showView('detail-rdv')">
+            <div class="stat-label">RDV confirmés</div>
+            <div><div class="stat-value">87</div><div class="stat-delta">Tous clients</div></div>
+          </div>
+          <div class="stat-card" onclick="showView('detail-conversion')">
+            <div class="stat-label">Conversion moy.</div>
+            <div><div class="stat-value">58%</div><div class="stat-delta">Tous clients</div></div>
+          </div>
+        </div>
+
+        <div class="section-title">Vos clients dans le monde</div>
+        <div class="globe-panel" onclick="showView('detail-clients')">
+          <div class="globe-sphere"></div>
+          <svg class="globe-grid" viewBox="0 0 160 160">
+            <ellipse cx="80" cy="80" rx="78" ry="30"/><ellipse cx="80" cy="80" rx="78" ry="55"/>
+            <ellipse cx="80" cy="80" rx="30" ry="78"/><ellipse cx="80" cy="80" rx="55" ry="78"/>
+          </svg>
+          <div class="globe-dots">
+            <div class="dot" style="top:55px; left:78px;"></div>
+            <div class="dot" style="top:60px; left:85px;"></div>
+            <div class="dot" style="top:50px; left:70px;"></div>
+            <div class="dot" style="top:95px; left:40px;"></div>
+            <div class="dot" style="top:40px; left:120px;"></div>
+          </div>
+          <div class="globe-caption">4 clients actifs · France</div>
+        </div>
+
+        <div class="section-title">Clients récents</div>
+        <div id="recent-clients-list"></div>
+      </div>
+
+      <!-- DETAILS STATS (inchangés) -->
+      <div class="view" id="view-detail-clients">
+        <div class="back-row" onclick="showView('overview')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Clients actifs</div>
+        <div class="detail-list" id="detail-clients-list"></div>
+      </div>
+      <div class="view" id="view-detail-ca">
+        <div class="back-row" onclick="showView('overview')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">CA généré ce mois</div>
+        <div class="detail-list">
+          <div class="detail-row" style="cursor:default;"><span>Jean-Marc Plomberie</span><span style="font-weight:600;">4 850€</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Léa Ongles Studio</span><span style="font-weight:600;">2 100€</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Sophie Coiffure</span><span style="font-weight:600;">6 470€</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Marc Électricité</span><span style="font-weight:600;">5 000€</span></div>
+          <div class="detail-row" style="cursor:default; font-weight:700;"><span>Total</span><span>18 420€</span></div>
+        </div>
+      </div>
+      <div class="view" id="view-detail-rdv">
+        <div class="back-row" onclick="showView('overview')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Rendez-vous confirmés</div>
+        <div class="detail-list">
+          <div class="detail-row" style="cursor:default;"><span>Jean-Marc Plomberie</span><span style="font-weight:600;">21</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Léa Ongles Studio</span><span style="font-weight:600;">34</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Sophie Coiffure</span><span style="font-weight:600;">19</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Marc Électricité</span><span style="font-weight:600;">13</span></div>
+        </div>
+      </div>
+      <div class="view" id="view-detail-conversion">
+        <div class="back-row" onclick="showView('overview')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Taux de conversion</div>
+        <div class="detail-list">
+          <div class="detail-row" style="cursor:default;"><span>Jean-Marc Plomberie</span><span style="font-weight:600;">62%</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Léa Ongles Studio</span><span style="font-weight:600;">71%</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Sophie Coiffure</span><span style="font-weight:600;">49%</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Marc Électricité</span><span style="font-weight:600;">50%</span></div>
+        </div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="view" id="view-clients">
+        <div class="header"><div class="large-title">Clients</div></div>
+        <div id="clients-list"></div>
+      </div>
+
+      <!-- PROFIL CLIENT -->
+      <div class="view" id="view-client-profile">
+        <div class="back-row" onclick="showView('clients')">‹ Retour</div>
+        <div class="header-top" style="margin-bottom:4px;">
+          <div class="large-title" id="profile-name" style="font-size:22px;">Client</div>
+          <span class="status-pill" id="profile-status">—</span>
+        </div>
+        <input type="text" id="profile-name-input" placeholder="Nom de l'entreprise">
+        <input type="text" id="profile-metier-input" placeholder="Métier">
+
+        <div class="section-title">Abonnement</div>
+        <div class="detail-list" style="cursor:default;">
+          <div class="detail-row" style="cursor:default;"><span>Statut</span><span id="profile-sub-status" style="font-weight:600;">Actif</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Renouvellement</span><span style="font-weight:600;">12/08</span></div>
+        </div>
+        <button class="btn-secondary" onclick="toggleClientStatus()" id="profile-pause-btn">Mettre en pause</button>
+        <button class="btn-secondary" onclick="showView('agentone')">Configurer Agent One pour ce client</button>
+        <button class="btn-danger" onclick="deleteClient()">Supprimer ce client</button>
+
+        <div class="section-title">Lien d'accès</div>
+        <div class="detail-list" style="cursor:default; display:flex; align-items:center; gap:8px; padding:12px 14px;">
+          <code style="font-size:12px; color:var(--accent); flex:1; overflow:hidden; text-overflow:ellipsis;" id="profile-link">fenn.app/d/xxxx</code>
+          <button class="btn-secondary" style="width:auto; margin:0;" onclick="alert('Lien copié (démonstration)')">Copier</button>
+        </div>
+
+        <div class="section-title">Notes internes</div>
+        <div class="detail-list" id="profile-notes-list" style="cursor:default;"></div>
+        <input type="text" id="new-note-input" placeholder="Ajouter une note...">
+        <button class="btn-secondary" onclick="addNote()">Ajouter la note</button>
+
+        <div class="section-title">Tâches</div>
+        <div class="detail-list" id="profile-tasks-list" style="cursor:default;"></div>
+        <input type="text" id="new-task-input" placeholder="Ajouter une tâche...">
+        <button class="btn-secondary" onclick="addTask()">Ajouter la tâche</button>
+      </div>
+
+      <!-- AGENT ONE - HUB -->
+      <div class="view" id="view-agentone">
+        <div class="header"><div class="large-title">Agent One</div></div>
+        <div class="pill-select" id="agentone-client-pills"></div>
+
+        <div class="nav-card" onclick="showView('agentone-chat')">
+          <div><div class="nav-card-title">Tester une conversation</div><div class="nav-card-sub">Simuler un échange avant de lancer en réel</div></div>
+          <span>›</span>
+        </div>
+        <div class="nav-card" onclick="showView('agentone-skills')">
+          <div><div class="nav-card-title">Compétences (skills)</div><div class="nav-card-sub">Prestations et vocabulaire connus</div></div>
+          <span>›</span>
+        </div>
+        <div class="nav-card" onclick="showView('agentone-tone')">
+          <div><div class="nav-card-title">Ton &amp; style</div><div class="nav-card-sub">Ajuster la personnalité d'Agent One</div></div>
+          <span>›</span>
+        </div>
+        <div class="nav-card" onclick="showView('agentone-bugs')">
+          <div><div class="nav-card-title">Problèmes signalés</div><div class="nav-card-sub">2 ouverts</div></div>
+          <span>›</span>
+        </div>
+      </div>
+
+      <!-- AGENT ONE - CHAT TEST -->
+      <div class="view" id="view-agentone-chat">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Test de conversation</div>
+        <div class="chat-box" id="chat-box">
+          <div class="bubble-row"><div class="bubble client">Bonjour, j'ai une fuite sous mon évier, vous pouvez venir quand ?</div></div>
+          <div class="bubble-row" style="justify-content:flex-end;"><div class="bubble agent">Bonjour ! Je note une fuite sous évier. Est-ce que c'est urgent (fuite active) ou maîtrisé pour l'instant ?</div></div>
+          <div class="flag-link" onclick="alert('Problème signalé sur cette réponse (démonstration)')">Signaler un problème sur cette réponse</div>
+        </div>
+        <input type="text" id="test-message-input" placeholder="Tape un message client à tester...">
+        <button class="btn-primary" onclick="simulateReply()">Simuler la réponse d'Agent One</button>
+      </div>
+
+      <!-- AGENT ONE - SKILLS -->
+      <div class="view" id="view-agentone-skills">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Compétences</div>
+        <div class="detail-list" style="cursor:default;">
+          <div class="detail-row" style="cursor:default;"><span>Dépannage plomberie</span><span class="status-pill active">Actif</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Installation sanitaire</span><span class="status-pill active">Actif</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Chauffe-eau</span><span class="status-pill active">Actif</span></div>
+        </div>
+        <input type="text" id="new-skill-input" placeholder="Nom de la nouvelle compétence...">
+        <button class="btn-primary" onclick="addSkill()">Ajouter cette compétence</button>
+      </div>
+
+      <!-- AGENT ONE - TON -->
+      <div class="view" id="view-agentone-tone">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Ton &amp; style</div>
+        <div class="slider-row">
+          <div class="slider-labels"><span>Formel</span><span>Décontracté</span></div>
+          <input type="range" min="0" max="100" value="35">
+        </div>
+        <div class="slider-row">
+          <div class="slider-labels"><span>Concis</span><span>Détaillé</span></div>
+          <input type="range" min="0" max="100" value="60">
+        </div>
+        <div class="slider-row">
+          <div class="slider-labels"><span>Réservé</span><span>Chaleureux</span></div>
+          <input type="range" min="0" max="100" value="70">
+        </div>
+        <button class="btn-primary" onclick="alert('Réglages de ton enregistrés (démonstration)')">Enregistrer</button>
+      </div>
+
+      <!-- AGENT ONE - BUGS -->
+      <div class="view" id="view-agentone-bugs">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Problèmes signalés</div>
+        <div class="detail-list" style="cursor:default;">
+          <div class="detail-row" style="cursor:default;"><span>Confond "urgent" et "important"</span><span class="status-pill pending">Ouvert</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Réponse trop longue sur devis</span><span class="status-pill pending">Ouvert</span></div>
+          <div class="detail-row" style="cursor:default;"><span>Mauvaise heure proposée</span><span class="status-pill active">Résolu</span></div>
+        </div>
+      </div>
+
+      <!-- REGLAGES -->
+      <div class="view" id="view-settings">
+        <div class="header"><div class="large-title">Paramètres</div></div>
+        <div class="detail-list">
+          <div class="detail-row" onclick="showView('settings-password')"><span>Changer le mot de passe</span><span>›</span></div>
+          <div class="detail-row" onclick="showView('settings-notifs')"><span>Notifications</span><span>›</span></div>
+        </div>
+      </div>
+      <div class="view" id="view-settings-password">
+        <div class="back-row" onclick="showView('settings')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Mot de passe</div>
+        <input type="text" placeholder="Nouveau mot de passe">
+        <button class="btn-primary" onclick="alert('Mot de passe changé (démonstration)')">Valider</button>
+      </div>
+      <div class="view" id="view-settings-notifs">
+        <div class="back-row" onclick="showView('settings')">‹ Retour</div>
+        <div class="large-title" style="font-size:22px; margin-bottom:12px;">Notifications</div>
+        <div class="detail-list" style="cursor:default;">
+          <div class="detail-row" style="cursor:default;"><span>Nouveau client</span><input type="checkbox" checked></div>
+          <div class="detail-row" style="cursor:default;"><span>Problème signalé</span><input type="checkbox" checked></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="fab" id="fab" onclick="addFictiveClient()">+</div>
+
+    <div class="tabbar">
+      <div class="tab active" data-tab="overview" onclick="showView('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
+        Vue d'ensemble
+      </div>
+      <div class="tab" data-tab="clients" onclick="showView('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.8-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14a5 5 0 0 1 5.5 5"/></svg>
+        Clients
+      </div>
+      <div class="tab" data-tab="agentone" onclick="showView('agentone')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 3l2 4M16 3l-2 4M9 12h.01M15 12h.01"/></svg>
+        Agent One
+      </div>
+      <div class="tab" data-tab="settings" onclick="showView('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
+        Réglages
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let clients = [
+  { id:'c1', name:'Jean-Marc Plomberie', metier:'Plombier · Toulouse', status:'active', amount:'4 850€', notes:[], tasks:[] },
+  { id:'c2', name:'Léa Ongles Studio', metier:'Nail artist · Toulouse', status:'active', amount:'2 100€', notes:[], tasks:[] },
+  { id:'c3', name:'Karim Auto Clean', metier:'Nettoyage auto · Blagnac', status:'paused', amount:'0€', notes:[], tasks:[] }
+];
+let currentProfileId = null;
+let fictiveCount = 0;
+const tabViews = ['overview','clients','agentone','settings'];
+
+function renderClientCard(c) {
+  const statusLabel = c.status === 'active' ? 'Actif' : (c.status === 'paused' ? 'En pause' : 'En attente');
+  return `<div class="client-card" onclick="openProfile('${c.id}')">
+    <div><div class="client-name">${c.name}</div><div class="client-meta">${c.metier}</div></div>
+    <div class="client-right"><span class="status-pill ${c.status}">${statusLabel}</span><div class="client-amount">${c.amount}</div></div>
+  </div>`;
+}
+function renderAll() {
+  document.getElementById('clients-list').innerHTML = clients.map(renderClientCard).join('');
+  document.getElementById('recent-clients-list').innerHTML = clients.slice(0,2).map(renderClientCard).join('');
+  document.getElementById('detail-clients-list').innerHTML = clients.filter(c=>c.status==='active').map(c =>
+    `<div class="detail-row" style="cursor:default;"><span>${c.name}</span><span class="client-meta">Actif</span></div>`).join('');
+  document.getElementById('agentone-client-pills').innerHTML = clients.map((c,i) =>
+    `<span class="${i===0?'active':''}" onclick="selectPill(this)">${c.name}</span>`).join('');
+}
+function selectPill(el) {
+  el.parentElement.querySelectorAll('span').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+}
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active-view'));
+  document.getElementById('view-' + id).classList.add('active-view');
+  if (tabViews.includes(id)) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.tab[data-tab="' + id + '"]').classList.add('active');
+  }
+  document.getElementById('fab').style.display = (id === 'overview' || id === 'clients') ? 'flex' : 'none';
+  document.getElementById('app').scrollTop = 0;
+}
+function addFictiveClient() {
+  fictiveCount++;
+  const id = 'fictif' + fictiveCount;
+  clients.unshift({ id, name:'Nouveau client', metier:'Métier à définir', status:'pending', amount:'0€', notes:[], tasks:[] });
+  renderAll();
+  openProfile(id);
+}
+function openProfile(id) {
+  currentProfileId = id;
+  const c = clients.find(x=>x.id===id);
+  document.getElementById('profile-name').textContent = c.name;
+  document.getElementById('profile-name-input').value = c.name;
+  document.getElementById('profile-metier-input').value = c.metier;
+  document.getElementById('profile-status').textContent = c.status==='active'?'Actif':(c.status==='paused'?'En pause':'En attente');
+  document.getElementById('profile-status').className = 'status-pill ' + c.status;
+  document.getElementById('profile-pause-btn').textContent = c.status==='paused' ? 'Réactiver' : 'Mettre en pause';
+  document.getElementById('profile-link').textContent = 'fenn.app/d/' + id;
+  renderNotesTasks();
+  showView('client-profile');
+}
+function renderNotesTasks() {
+  const c = clients.find(x=>x.id===currentProfileId);
+  document.getElementById('profile-notes-list').innerHTML = c.notes.length
+    ? c.notes.map(n=>`<div class="detail-row" style="cursor:default;"><span>${n}</span></div>`).join('')
+    : `<div class="detail-row" style="cursor:default;"><span class="client-meta">Aucune note pour l'instant</span></div>`;
+  document.getElementById('profile-tasks-list').innerHTML = c.tasks.length
+    ? c.tasks.map((t,i)=>`<div class="task-item"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${i})"><span>${t.text}</span></div>`).join('')
+    : `<div class="detail-row" style="cursor:default;"><span class="client-meta">Aucune tâche pour l'instant</span></div>`;
+}
+function addNote() {
+  const input = document.getElementById('new-note-input');
+  if (!input.value) return;
+  clients.find(x=>x.id===currentProfileId).notes.push(input.value);
+  input.value = '';
+  renderNotesTasks();
+}
+function addTask() {
+  const input = document.getElementById('new-task-input');
+  if (!input.value) return;
+  clients.find(x=>x.id===currentProfileId).tasks.push({text:input.value, done:false});
+  input.value = '';
+  renderNotesTasks();
+}
+function toggleTask(i) {
+  const c = clients.find(x=>x.id===currentProfileId);
+  c.tasks[i].done = !c.tasks[i].done;
+}
+function toggleClientStatus() {
+  const c = clients.find(x=>x.id===currentProfileId);
+  c.status = c.status === 'paused' ? 'active' : 'paused';
+  renderAll();
+  openProfile(currentProfileId);
+}
+function deleteClient() {
+  if (!confirm('Supprimer définitivement ce client ?')) return;
+  clients = clients.filter(x=>x.id!==currentProfileId);
+  renderAll();
+  showView('clients');
+}
+function addSkill() {
+  const input = document.getElementById('new-skill-input');
+  if (!input.value) return;
+  alert('Compétence "' + input.value + '" ajoutée (démonstration)');
+  input.value = '';
+}
+function simulateReply() {
+  const input = document.getElementById('test-message-input');
+  if (!input.value) return;
+  const box = document.getElementById('chat-box');
+  box.innerHTML += `<div class="bubble-row"><div class="bubble client">${input.value}</div></div>
+    <div class="bubble-row" style="justify-content:flex-end;"><div class="bubble agent">Réponse simulée d'Agent One à ce message (démonstration).</div></div>
+    <div class="flag-link" onclick="alert('Problème signalé (démonstration)')">Signaler un problème sur cette réponse</div>`;
+  input.value = '';
+  box.scrollTop = box.scrollHeight;
+}
+renderAll();
+</script>
+</body>
+</html>
