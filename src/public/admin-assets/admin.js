@@ -166,9 +166,8 @@ function resetLabo() {
   document.getElementById('chat-box').innerHTML = '<div class="bubble-row" style="justify-content:center;"><div class="bubble system">Nouvelle conversation de test — rien n\'est envoyé pour de vrai.</div></div>';
 }
 
-function appendAgentBubble(replyText) {
+function appendAgentBubble(replyText, turnIndex) {
   const box = document.getElementById('chat-box');
-  const turnIndex = laboTurns.length;
   box.innerHTML += `<div class="bubble-row" style="justify-content:flex-end;"><div class="bubble agent">${escapeHtml(replyText)}</div></div>
     <div class="flag-link" data-turn="${turnIndex}" onclick="openFlagForm(${turnIndex}, this)">Signaler un problème sur cette réponse</div>`;
   box.scrollTop = box.scrollHeight;
@@ -190,8 +189,9 @@ async function sendTestMessage() {
   });
   if (!result) return;
 
+  const turnIndex = laboTurns.length;
   laboTurns.push({ historyBefore: historyBefore ? `${historyBefore}\nClient: ${message}` : `Client: ${message}`, actualReply: result.reply });
-  appendAgentBubble(result.reply);
+  appendAgentBubble(result.reply, turnIndex);
 
   laboHistory = laboHistory ? `${laboHistory}\nClient: ${message}\nAssistant: ${result.reply}` : `Client: ${message}\nAssistant: ${result.reply}`;
   laboState = result.nextState;
@@ -204,44 +204,77 @@ async function simulateMissedCallOpening() {
   if (!result) return;
 
   document.getElementById('chat-box').innerHTML = '<div class="bubble-row" style="justify-content:center;"><div class="bubble system">Simulation : l\'appel n\'a mené nulle part, Agent One envoie le premier message.</div></div>';
+  const turnIndex = laboTurns.length;
   laboTurns.push({ historyBefore: '', actualReply: result.reply });
-  appendAgentBubble(result.reply);
+  appendAgentBubble(result.reply, turnIndex);
 
   laboHistory = `Assistant: ${result.reply}`;
   laboState = result.nextState;
 }
 
+// ---------------------------------------------------------------------------
+// Signalement d'une réponse ratée — jusqu'à 3 exemples de bonne réponse +
+// le pourquoi, envoyés immédiatement (pas de confirmation à part) : dès
+// l'envoi, la correction est enregistrée et réinjectée automatiquement
+// dans toutes les réponses futures d'Agent One (voir composeReply côté
+// serveur) — pas besoin d'une validation supplémentaire.
+// ---------------------------------------------------------------------------
+
 function openFlagForm(turnIndex, linkEl) {
-  linkEl.outerHTML = `<div class="detail-list" style="padding: 10px 12px; margin-top: -4px; margin-bottom: 8px;">
-    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Qu'aurait-il fallu répondre ?</label>
-    <textarea id="flag-input-${turnIndex}" rows="2" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border);"></textarea>
+  linkEl.outerHTML = `<div class="detail-list" id="flag-form-${turnIndex}" style="padding: 10px 12px; margin-top: -4px; margin-bottom: 8px;">
+    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Exemples de bonne réponse (1 à 3)</label>
+    <div id="flag-examples-${turnIndex}">
+      <textarea class="flag-example" rows="2" placeholder="Exemple 1" style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); margin-bottom:6px;"></textarea>
+    </div>
+    <div class="flag-add-example" onclick="addFlagExample(${turnIndex})" style="font-size:12px; color:var(--accent); cursor:pointer; margin-bottom:8px;">+ Ajouter un exemple</div>
+    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Pourquoi (ce qui n'allait pas / ce qu'il fallait faire)</label>
+    <textarea id="flag-reasoning-${turnIndex}" rows="2" placeholder="Explique le pourquoi du comment..." style="width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border);"></textarea>
     <div style="display:flex; gap:8px;">
-      <button class="btn-secondary" style="margin-top:6px;" onclick="cancelFlagForm(${turnIndex}, this)">Annuler</button>
-      <button class="btn-primary" style="margin-top:6px;" onclick="submitFlag(${turnIndex}, this)">Envoyer le signalement</button>
+      <button class="btn-secondary" style="margin-top:6px;" onclick="cancelFlagForm(${turnIndex})">Annuler</button>
+      <button class="btn-primary" style="margin-top:6px;" onclick="submitFlag(${turnIndex})">Envoyer le signalement</button>
     </div>
   </div>`;
 }
 
-function cancelFlagForm(turnIndex, buttonEl) {
-  const container = buttonEl.closest('.detail-list');
+function addFlagExample(turnIndex) {
+  const container = document.getElementById('flag-examples-' + turnIndex);
+  if (container.children.length >= 3) return;
+  const n = container.children.length + 1;
+  const textarea = document.createElement('textarea');
+  textarea.className = 'flag-example';
+  textarea.rows = 2;
+  textarea.placeholder = 'Exemple ' + n;
+  textarea.style.cssText = 'width:100%; font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); margin-bottom:6px;';
+  container.appendChild(textarea);
+  if (container.children.length >= 3) {
+    document.querySelector('#flag-form-' + turnIndex + ' .flag-add-example').style.display = 'none';
+  }
+}
+
+function cancelFlagForm(turnIndex) {
+  const container = document.getElementById('flag-form-' + turnIndex);
   container.outerHTML = `<div class="flag-link" data-turn="${turnIndex}" onclick="openFlagForm(${turnIndex}, this)">Signaler un problème sur cette réponse</div>`;
 }
 
-async function submitFlag(turnIndex, buttonEl) {
-  const container = buttonEl.closest('.detail-list');
-  const expectedReply = document.getElementById('flag-input-' + turnIndex).value.trim();
-  if (!expectedReply) { alert('Indique ce qu\'il aurait fallu répondre.'); return; }
+async function submitFlag(turnIndex) {
+  const form = document.getElementById('flag-form-' + turnIndex);
+  const expectedReplies = Array.from(form.querySelectorAll('.flag-example')).map(t => t.value.trim()).filter(Boolean);
+  const reasoning = document.getElementById('flag-reasoning-' + turnIndex).value.trim();
+  if (expectedReplies.length === 0) { alert('Ajoute au moins un exemple de bonne réponse.'); return; }
+  if (!reasoning) { alert('Explique le pourquoi du comment.'); return; }
+
   const turn = laboTurns[turnIndex];
   const result = await apiCall('/admin/api/labo/feedback', {
     body: JSON.stringify({
       artisanId: laboCurrentClientId,
       conversationExcerpt: turn.historyBefore,
       actualReply: turn.actualReply,
-      expectedReply,
+      expectedReplies,
+      reasoning,
     }),
   });
   if (!result) return;
-  container.outerHTML = `<div style="font-size:12px; color:var(--positive); margin-top:-4px; margin-bottom:8px;">✓ Signalé — visible dans "Problèmes signalés"</div>`;
+  form.outerHTML = `<div style="font-size:12px; color:var(--positive); margin-top:-4px; margin-bottom:8px;">✓ Signalé et déjà pris en compte pour les prochaines réponses d'Agent One</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +291,8 @@ async function openIssues() {
             <span class="status-pill ${feedback.status === 'ouvert' ? 'en_attente' : 'actif'}" style="cursor:pointer;" onclick="toggleIssue('${feedback.id}', '${feedback.status === 'ouvert' ? 'resolu' : 'ouvert'}')">${feedback.status === 'ouvert' ? 'Ouvert' : 'Résolu'}</span>
           </div>
           <div style="font-size:12.5px; color:var(--text-secondary);">Réponse d'Agent One : "${escapeHtml(feedback.actualReply)}"</div>
-          <div style="font-size:12.5px;">Attendu : "${escapeHtml(feedback.expectedReply)}"</div>
+          <div style="font-size:12.5px;">${feedback.expectedReplies.map(r => `Attendu : "${escapeHtml(r)}"`).join('<br>')}</div>
+          <div style="font-size:12px; color:var(--text-secondary); font-style:italic;">${escapeHtml(feedback.reasoning)}</div>
         </div>`).join('') + `</div>`
     : `<div class="empty-state">Aucun problème signalé pour l'instant.</div>`;
   showView('issues');

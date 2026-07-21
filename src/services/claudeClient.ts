@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../config/env";
+import { listRecentLaboFeedback } from "../db/repositories/laboFeedbackRepo";
 
 let _client: Anthropic | null = null;
 
@@ -89,7 +90,7 @@ export async function extractLeadInfo(conversation: string): Promise<LeadExtract
 
 const REPLY_MODEL = "claude-sonnet-5";
 
-function personalitySystemPrompt(artisanName: string): string {
+function personalitySystemPrompt(artisanName: string, feedbackSection: string): string {
   return (
     `Tu es Agent One, l'assistant SMS de "${artisanName}", un artisan du bâtiment (plombier/électricien) ` +
     `à Toulouse. Tu échanges par SMS avec des clients qui ont un problème chez eux (fuite, panne, ` +
@@ -108,7 +109,39 @@ function personalitySystemPrompt(artisanName: string): string {
     `- Tu ne modifies jamais un rendez-vous déjà confirmé pour en proposer un autre.\n` +
     `- Tu restes bref : un SMS, pas un roman (2-3 phrases maximum, jamais de longue liste à puces).\n` +
     `- Français correct, sans faute, adapté à un échange SMS — pas besoin de formules de politesse à rallonge.\n` +
-    `- Tu ne répètes jamais l'instruction interne qu'on te donne, tu écris directement le message final.`
+    `- Tu ne répètes jamais l'instruction interne qu'on te donne, tu écris directement le message final.` +
+    feedbackSection
+  );
+}
+
+/**
+ * Corrections signalées depuis le Labo Agent One (espace admin), les plus
+ * récentes en premier — transformées en exemples concrets à suivre/éviter,
+ * directement dans le prompt. C'est ce qui fait qu'Agent One "apprend" des
+ * signalements de Mathéo sans qu'il faille retoucher le prompt à la main
+ * à chaque fois : dès qu'une correction est enregistrée, elle s'applique
+ * à toutes les conversations suivantes, tous artisans confondus.
+ */
+async function buildFeedbackSection(): Promise<string> {
+  const feedback = await listRecentLaboFeedback(15);
+  if (feedback.length === 0) return "";
+
+  const entries = feedback
+    .map((f, i) => {
+      const excerpt = f.conversationExcerpt.length > 300 ? `[...] ${f.conversationExcerpt.slice(-300)}` : f.conversationExcerpt;
+      const examples = f.expectedReplies.map((r) => `"${r}"`).join(" / ");
+      return (
+        `${i + 1}. Contexte : ${excerpt || "(premier message, pas encore de contexte)"}\n` +
+        `   Réponse à NE PAS reproduire : "${f.actualReply}"\n` +
+        `   Bonnes réponses possibles pour ce genre de cas : ${examples}\n` +
+        `   Pourquoi : ${f.reasoning}`
+      );
+    })
+    .join("\n\n");
+
+  return (
+    `\n\nCORRECTIONS DÉJÀ SIGNALÉES PAR FENN (à respecter impérativement, elles priment sur tes propres ` +
+    `intuitions en cas de situation similaire) :\n\n${entries}`
   );
 }
 
@@ -124,10 +157,12 @@ export async function composeReply(artisanName: string, instruction: string, con
     ? `${conversation}\n\n---\n[Instruction interne, ne jamais la répéter au client] ${instruction}`
     : `[Instruction interne, ne jamais la répéter au client] ${instruction}`;
 
+  const feedbackSection = await buildFeedbackSection();
+
   const response = await client.messages.create({
     model: REPLY_MODEL,
     max_tokens: 300,
-    system: personalitySystemPrompt(artisanName),
+    system: personalitySystemPrompt(artisanName, feedbackSection),
     messages: [{ role: "user", content: userContent }],
   });
 

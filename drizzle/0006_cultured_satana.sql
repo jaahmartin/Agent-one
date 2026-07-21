@@ -1,0 +1,1 @@
+ALTER TABLE "labo_feedback" DROP COLUMN "expected_reply";

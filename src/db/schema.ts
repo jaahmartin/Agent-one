@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -186,9 +187,14 @@ export const clientTasks = pgTable("client_tasks", {
 });
 
 // Signalements du Labo Agent One : une réponse jugée mauvaise par Mathéo,
-// avec ce qu'il aurait fallu répondre à la place — sert de base pour
-// améliorer le moteur plus tard. Même logique RLS que les tables ci-dessus
-// (aucune policy pour app_runtime : jamais visible depuis le dashboard artisan).
+// avec jusqu'à 3 exemples de ce qu'il aurait fallu répondre à la place et
+// le pourquoi du comment. Ces corrections sont réinjectées automatiquement
+// dans le prompt de composeReply() (voir claudeClient.ts) pour toutes les
+// conversations futures, tous artisans confondus — le "cerveau" d'Agent One
+// est partagé (moteur générique, voir CONTEXTE_AGENT_ONE.md), artisanId
+// n'est gardé ici que pour savoir où le problème a été repéré. Même logique
+// RLS que les tables ci-dessus (aucune policy pour app_runtime : jamais
+// visible depuis le dashboard artisan).
 export const laboFeedback = pgTable("labo_feedback", {
   id: uuid("id").defaultRandom().primaryKey(),
   artisanId: uuid("artisan_id")
@@ -196,7 +202,8 @@ export const laboFeedback = pgTable("labo_feedback", {
     .references(() => artisans.id, { onDelete: "cascade" }),
   conversationExcerpt: text("conversation_excerpt").notNull(),
   actualReply: text("actual_reply").notNull(),
-  expectedReply: text("expected_reply").notNull(),
+  expectedReplies: jsonb("expected_replies").$type<string[]>().notNull(),
+  reasoning: text("reasoning").notNull(),
   status: text("status").notNull().default("ouvert"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

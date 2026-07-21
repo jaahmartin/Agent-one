@@ -277,8 +277,11 @@ router.post(
 router.post(
   "/api/labo/feedback",
   asyncHandler(async (req, res) => {
-    const { artisanId, conversationExcerpt, actualReply, expectedReply } = req.body ?? {};
-    if (!artisanId || !actualReply || typeof expectedReply !== "string" || !expectedReply.trim()) {
+    const { artisanId, conversationExcerpt, actualReply, expectedReplies, reasoning } = req.body ?? {};
+    const cleanedReplies = Array.isArray(expectedReplies)
+      ? expectedReplies.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0).map((r: string) => r.trim()).slice(0, 3)
+      : [];
+    if (!artisanId || !actualReply || cleanedReplies.length === 0 || typeof reasoning !== "string" || !reasoning.trim()) {
       res.status(400).json({ error: "missing_fields" });
       return;
     }
@@ -286,7 +289,8 @@ router.post(
       artisanId,
       conversationExcerpt: typeof conversationExcerpt === "string" ? conversationExcerpt : "",
       actualReply,
-      expectedReply: expectedReply.trim(),
+      expectedReplies: cleanedReplies,
+      reasoning: reasoning.trim(),
     });
     res.json(feedback);
   }),
