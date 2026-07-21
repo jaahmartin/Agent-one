@@ -566,7 +566,7 @@ export async function renderDashboard(artisan: Artisan): Promise<string> {
     REVENUE_ROWS: revenueRowsHtml,
     REMINDERS_TODAY_ROWS: remindersTodayHtml,
     REMINDERS_UPCOMING_ROWS: remindersUpcomingHtml,
-    ARTISAN_TWILIO_NUMBER: artisan.twilioNumber,
+    ARTISAN_TWILIO_NUMBER: escapeHtml(artisan.twilioNumber ?? "En attente de configuration"),
     NOTIFICATION_EMAIL: escapeHtml(artisan.notificationEmail ?? "—"),
     SUBSCRIPTION_LABEL: escapeHtml(
       artisan.subscriptionStatus

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Fenn — Espace Admin</title>
+<link rel="icon" href="/dashboard-assets/favicon.ico" sizes="any">
+<style>
+  :root { color-scheme: light; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap');
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --border: #D2D2D7;
+    --text: #1D1D1F; --text-secondary: #6E6E73;
+    --accent: #0C00B6; --accent-dark: #0A009B;
+    --alert: #D64545; --alert-bg: #FBEAEA;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 21px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 21px; padding: 34px; width: 100%; max-width: 360px; }
+  .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 21px; }
+  .brand-mark { width: 26px; height: 26px; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 19px; }
+  .admin-chip { font-size: 11px; font-weight: 600; color: var(--accent); background: #E7E6F8; padding: 3px 9px; border-radius: 100px; margin-left: 6px; }
+  h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 5px; }
+  .sub { color: var(--text-secondary); font-size: 13.5px; margin-bottom: 21px; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+  input { width: 100%; font-family: inherit; font-size: 14px; padding: 11px 13px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-bottom: 13px; }
+  input:focus { outline: none; border-color: var(--accent); }
+  button { width: 100%; background: var(--accent); color: #fff; border: none; padding: 12px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  button:hover { background: var(--accent-dark); }
+  .error { display: {{ERROR_DISPLAY}}; background: var(--alert-bg); color: #7a2e2e; border-radius: 10px; padding: 10px 13px; font-size: 13px; margin-bottom: 13px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+      <span class="brand-name">Fenn</span>
+      <span class="admin-chip">Admin</span>
+    </div>
+    <h1>Connexion</h1>
+    <div class="sub">Accès réservé à Fenn.</div>
+    <div class="error">Email ou mot de passe incorrect.</div>
+    <form method="POST" action="/admin/login">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required autocomplete="username">
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password">
+      <button type="submit">Se connecter</button>
+    </form>
+  </div>
+</body>
+</html>

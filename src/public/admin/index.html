@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Fenn — Espace Admin</title>
+<link rel="icon" href="/dashboard-assets/favicon.ico" sizes="any">
+<style>
+  :root { color-scheme: light; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600&display=swap');
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --border: #D2D2D7;
+    --text: #1D1D1F; --text-secondary: #6E6E73;
+    --accent: #0C00B6; --accent-dark: #0A009B; --accent-tint-10: #E7E6F8;
+    --positive: #229955; --positive-bg: #E3F6EA;
+    --alert: #D64545; --alert-bg: #FBEAEA;
+    --pending: #B8860B; --pending-bg: #FBF3E0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+  .shell { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 90px; }
+  .app { padding: 18px 18px 24px; }
+
+  .header { padding: 8px 0 14px; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
+  .brand-mini { display: flex; align-items: center; gap: 6px; }
+  .brand-mark { width: 20px; height: 20px; }
+  .brand-name-mini { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14px; }
+  .admin-chip { font-size: 10px; font-weight: 600; color: var(--accent); background: var(--accent-tint-10); padding: 2px 8px; border-radius: 100px; }
+  .logout-link { font-size: 12px; color: var(--text-secondary); cursor: pointer; text-decoration: none; }
+  .large-title { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; margin-top: 6px; }
+
+  .view { display: none; }
+  .view.active-view { display: block; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 14px; aspect-ratio: 1.15/1; display: flex; flex-direction: column; justify-content: space-between; }
+  .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat-delta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; margin: 18px 4px 8px; }
+
+  .client-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .client-name { font-weight: 600; font-size: 15px; }
+  .client-meta { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+  .status-pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; white-space: nowrap; }
+  .status-pill.actif { background: var(--positive-bg); color: var(--positive); }
+  .status-pill.en_pause { background: var(--bg); color: var(--text-secondary); }
+  .status-pill.en_attente { background: var(--pending-bg); color: var(--pending); }
+  .client-right { text-align: right; }
+  .client-amount { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .empty-state { color: var(--text-secondary); font-size: 13.5px; padding: 8px 4px; }
+
+  .fab { position: fixed; bottom: 100px; left: 50%; transform: translateX(calc(-50% + 200px)); width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 6px 16px rgba(12,0,182,0.35); z-index: 15; cursor: pointer; }
+
+  .back-row { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 15px; font-weight: 500; margin-bottom: 8px; padding-top: 4px; cursor: pointer; }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-list { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 4px 14px; margin-bottom: 14px; }
+
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; height: 78px; background: rgba(255,255,255,0.94); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; z-index: 20; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding-bottom: 12px; color: var(--text-secondary); font-size: 10.5px; font-weight: 500; cursor: pointer; }
+  .tab.active { color: var(--accent); }
+  .tab svg { width: 22px; height: 22px; }
+
+  .btn-primary { background: var(--accent); color: #fff; border: none; padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
+  .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
+  .btn-danger { background: var(--alert-bg); border: none; color: var(--alert); padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
+  input[type=text], input[type=email], textarea, select { width: 100%; font-family: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; }
+
+  .chat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; min-height: 220px; margin-bottom: 10px; display: flex; flex-direction: column; }
+  .bubble { max-width: 80%; padding: 9px 13px; border-radius: 16px; font-size: 13.5px; margin-bottom: 8px; line-height: 1.4; }
+  .bubble.client { background: var(--bg); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .bubble.agent { background: var(--accent-tint-10); color: var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .bubble.system { background: var(--pending-bg); color: var(--pending); align-self: center; font-size: 12px; }
+  .flag-link { font-size: 11px; color: var(--alert); text-align: right; margin-top: -4px; margin-bottom: 8px; cursor: pointer; }
+
+  .pill-select { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px; }
+  .pill-select span { flex-shrink: 0; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 100px; background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; }
+  .pill-select span.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .nav-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .nav-card-title { font-weight: 600; font-size: 14.5px; }
+  .nav-card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .task-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .task-item:last-child { border-bottom: none; }
+  .task-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+  .task-item.done span { text-decoration: line-through; color: var(--text-secondary); }
+
+  .soon-badge { font-size: 11px; color: var(--pending); background: var(--pending-bg); padding: 2px 8px; border-radius: 100px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="app" id="app">
+
+      <!-- VUE D'ENSEMBLE -->
+      <div class="view active-view" id="view-overview">
+        <div class="header">
+          <div class="header-top">
+            <div class="brand-mini">
+              <svg class="brand-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path d="M 174,136 C 302,136 302,360 206,360 C 142,360 142,272 198,272 L 390,272" fill="none" stroke="#1D1D1F" stroke-width="38" stroke-linecap="square" stroke-linejoin="round"/></svg>
+              <span class="brand-name-mini">Fenn</span>
+              <span class="admin-chip">Admin</span>
+            </div>
+            <a class="logout-link" href="/admin/logout">Se déconnecter</a>
+          </div>
+          <div class="large-title">Vue d'ensemble</div>
+        </div>
+
+        <div class="grid2">
+          <div class="stat-card" onclick="showView('clients')">
+            <div class="stat-label">Clients</div>
+            <div><div class="stat-value">{{OVERVIEW_CLIENT_COUNT}}</div><div class="stat-delta">Total</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">CA généré</div>
+            <div><div class="stat-value">{{OVERVIEW_REVENUE_MONTH}}</div><div class="stat-delta">Ce mois-ci</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">RDV confirmés</div>
+            <div><div class="stat-value">{{OVERVIEW_APPOINTMENTS}}</div><div class="stat-delta">Tous clients</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Conversion moy.</div>
+            <div><div class="stat-value">{{OVERVIEW_CONVERSION}}%</div><div class="stat-delta">Tous clients</div></div>
+          </div>
+        </div>
+
+        <div class="section-title">Clients</div>
+        <div id="overview-clients-list">{{CLIENTS_LIST_HTML}}</div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="view" id="view-clients">
+        <div class="header"><div class="large-title">Clients</div></div>
+        <div id="clients-list">{{CLIENTS_LIST_HTML}}</div>
+      </div>
+
+      <!-- NOUVEAU CLIENT -->
+      <div class="view" id="view-new-client">
+        <div class="back-row" onclick="showView('clients')">‹ Retour</div>
+        <div class="large-title" style="font-size: 22px; margin-bottom: 12px;">Nouveau client</div>
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Nom de l'entreprise</label>
+        <input type="text" id="new-client-name" placeholder="Ex: Jean-Marc Plomberie">
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Métier</label>
+        <input type="text" id="new-client-metier" placeholder="Ex: Plombier">
+        <button class="btn-primary" onclick="createClient()">Créer la fiche client</button>
+      </div>
+
+      <!-- PROFIL CLIENT -->
+      <div class="view" id="view-client-profile">
+        <div class="back-row" onclick="showView('clients')">‹ Retour</div>
+        <div class="header-top" style="margin-bottom: 12px;">
+          <div class="large-title" id="profile-name" style="font-size: 22px;">Client</div>
+          <span class="status-pill" id="profile-status">—</span>
+        </div>
+
+        <div class="section-title">Informations</div>
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Nom</label>
+        <input type="text" id="profile-name-input">
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Métier</label>
+        <input type="text" id="profile-metier-input">
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Numéro Twilio (client final)</label>
+        <input type="text" id="profile-twilio-input" placeholder="+33...">
+        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Numéro portable de l'artisan</label>
+        <input type="text" id="profile-forwarding-input" placeholder="+33...">
+        <button class="btn-secondary" onclick="saveProfile()">Enregistrer</button>
+
+        <div class="section-title">Abonnement</div>
+        <button class="btn-secondary" id="profile-pause-btn" onclick="toggleClientStatus()">Mettre en pause</button>
+
+        <div class="section-title">Lien d'accès au dashboard</div>
+        <div class="detail-list" style="display: flex; align-items: center; gap: 8px; padding: 12px 14px;">
+          <code style="font-size: 12px; color: var(--accent); flex: 1; overflow: hidden; text-overflow: ellipsis;" id="profile-link">—</code>
+          <button class="btn-secondary" style="width: auto; margin: 0;" onclick="copyProfileLink()">Copier</button>
+        </div>
+
+        <div class="section-title">Notes internes</div>
+        <div class="detail-list" id="profile-notes-list"></div>
+        <input type="text" id="new-note-input" placeholder="Ajouter une note...">
+        <button class="btn-secondary" onclick="addNote()">Ajouter la note</button>
+
+        <div class="section-title">Tâches</div>
+        <div class="detail-list" id="profile-tasks-list"></div>
+        <input type="text" id="new-task-input" placeholder="Ajouter une tâche...">
+        <button class="btn-secondary" onclick="addTask()">Ajouter la tâche</button>
+
+        <div class="section-title">Zone dangereuse</div>
+        <button class="btn-danger" onclick="deleteClient()">Supprimer ce client</button>
+      </div>
+
+      <!-- AGENT ONE - HUB -->
+      <div class="view" id="view-agentone">
+        <div class="header"><div class="large-title">Agent One</div></div>
+        <div class="nav-card" onclick="openLabo()">
+          <div><div class="nav-card-title">Tester une conversation</div><div class="nav-card-sub">Simuler un échange avant de lancer en réel</div></div>
+          <span>›</span>
+        </div>
+        <div class="nav-card" style="opacity: 0.6; cursor: default;">
+          <div><div class="nav-card-title">Compétences (skills)</div><div class="nav-card-sub">Prestations et vocabulaire connus</div></div>
+          <span class="soon-badge">Bientôt</span>
+        </div>
+        <div class="nav-card" style="opacity: 0.6; cursor: default;">
+          <div><div class="nav-card-title">Ton &amp; style</div><div class="nav-card-sub">Ajuster la personnalité d'Agent One</div></div>
+          <span class="soon-badge">Bientôt</span>
+        </div>
+        <div class="nav-card" style="opacity: 0.6; cursor: default;">
+          <div><div class="nav-card-title">Problèmes signalés</div><div class="nav-card-sub">Historique des corrections à faire</div></div>
+          <span class="soon-badge">Bientôt</span>
+        </div>
+      </div>
+
+      <!-- AGENT ONE - TEST DE CONVERSATION -->
+      <div class="view" id="view-labo">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size: 22px; margin-bottom: 8px;">Test de conversation</div>
+        <div class="sub" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">Simulation uniquement — aucun SMS n'est envoyé, aucune donnée client réelle n'est modifiée.</div>
+        <div class="pill-select" id="labo-client-pills"></div>
+        <div class="chat-box" id="chat-box"></div>
+        <input type="text" id="test-message-input" placeholder="Tape un message client à tester..." onkeydown="if(event.key==='Enter'){event.preventDefault(); sendTestMessage();}">
+        <button class="btn-primary" onclick="sendTestMessage()">Simuler la réponse d'Agent One</button>
+        <button class="btn-secondary" onclick="resetLabo()">Recommencer la conversation</button>
+      </div>
+
+      <!-- REGLAGES -->
+      <div class="view" id="view-settings">
+        <div class="header"><div class="large-title">Réglages</div></div>
+        <div class="detail-list">
+          <div class="detail-row"><span>Connecté en tant que</span><span style="color: var(--text-secondary);">{{ADMIN_EMAIL}}</span></div>
+        </div>
+        <button class="btn-secondary" onclick="location.href='/admin/logout'">Se déconnecter</button>
+      </div>
+
+    </div>
+
+    <div class="fab" id="fab" onclick="showView('new-client')">+</div>
+
+    <div class="tabbar">
+      <div class="tab active" data-tab="overview" onclick="showView('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
+        Vue d'ensemble
+      </div>
+      <div class="tab" data-tab="clients" onclick="showView('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.8-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14a5 5 0 0 1 5.5 5"/></svg>
+        Clients
+      </div>
+      <div class="tab" data-tab="agentone" onclick="showView('agentone')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 3l2 4M16 3l-2 4M9 12h.01M15 12h.01"/></svg>
+        Agent One
+      </div>
+      <div class="tab" data-tab="settings" onclick="showView('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
+        Réglages
+      </div>
+    </div>
+  </div>
+
+<script src="/admin-assets/admin.js"></script>
+</body>
+</html>

@@ -162,6 +162,9 @@ export async function simulateReply(
 // ---------------------------------------------------------------------------
 
 async function sendAndLog(lead: Lead, artisan: Artisan, body: string) {
+  if (!artisan.twilioNumber) {
+    throw new Error(`L'artisan "${artisan.name}" n'a pas encore de numéro Twilio configuré.`);
+  }
   const message = await sendSms({ to: lead.clientPhone, from: artisan.twilioNumber, body });
   await logMessage(lead.id, "out", body, message.sid);
 }
@@ -258,6 +261,9 @@ async function applyDecision(artisan: Artisan, lead: Lead, decision: Conversatio
       const updatedLead = await updateLead(lead.id, { status: "confirme" });
       await sendAndLog(updatedLead, artisan, decision.reply);
 
+      if (!artisan.twilioNumber || !artisan.forwardingNumber) {
+        throw new Error(`L'artisan "${artisan.name}" n'a pas de numéro Twilio/portable configuré, récapitulatif non envoyé.`);
+      }
       const slotLabel = formatSlotFr(appointment.startTime);
       await sendSms({
         to: artisan.forwardingNumber,

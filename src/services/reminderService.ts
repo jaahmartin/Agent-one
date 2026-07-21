@@ -57,7 +57,7 @@ export async function runReminderSweep(now: Date = new Date()): Promise<number> 
       const isNextStageForThisAppointment = appointment.lastReminderStage === previousStage;
       if (daysSinceCreated >= afterDays && isNextStageForThisAppointment) {
         const artisan = await findArtisanById(lead.artisanId);
-        if (!artisan) break;
+        if (!artisan || !artisan.twilioNumber) break;
 
         const slotLabel = formatSlotFr(appointment.startTime);
         const body = reminderMessage(stage, artisan.name, slotLabel);

@@ -20,7 +20,7 @@ router.post("/incoming", twilioWebhookMiddleware(), async (req, res) => {
   const response = new VoiceResponse();
   const artisan = await findArtisanByTwilioNumber(req.body.To);
 
-  if (!artisan) {
+  if (!artisan || !artisan.forwardingNumber) {
     response.say({ language: "fr-FR" }, "Ce numéro n'est pas configuré. Merci de réessayer plus tard.");
     response.hangup();
     res.type("text/xml").send(response.toString());

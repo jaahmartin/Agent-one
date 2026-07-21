@@ -19,6 +19,11 @@ const envSchema = z.object({
   // Clé JSON du compte de service Google, encodée en base64 (voir README.md).
   GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),
   PUBLIC_BASE_URL: z.string().optional(),
+  // Espace admin Fenn (accès de Mathéo uniquement) : identifiants + secret
+  // de signature des sessions. Voir src/services/adminAuth.ts.
+  ADMIN_EMAIL: z.string().optional(),
+  ADMIN_PASSWORD_HASH: z.string().optional(),
+  ADMIN_SESSION_SECRET: z.string().optional(),
 });
 
 function loadEnv() {

@@ -4,6 +4,7 @@ import healthRouter from "./routes/health";
 import voiceRouter from "./routes/voice";
 import smsRouter from "./routes/sms";
 import dashboardRouter from "./routes/dashboard";
+import adminRouter from "./routes/admin";
 
 export function createApp() {
   const app = express();
@@ -18,12 +19,14 @@ export function createApp() {
   app.use(express.json());
 
   app.use("/dashboard-assets", express.static(path.join(__dirname, "public", "dashboard-assets")));
+  app.use("/admin-assets", express.static(path.join(__dirname, "public", "admin-assets")));
   app.use("/legal", express.static(path.join(__dirname, "public", "legal")));
 
   app.use("/health", healthRouter);
   app.use("/webhooks/voice", voiceRouter);
   app.use("/webhooks/sms", smsRouter);
   app.use("/dashboard", dashboardRouter);
+  app.use("/admin", adminRouter);
 
   // Filet de sécurité final : n'importe quelle erreur non gérée plus haut
   // (ex: base de données injoignable) renvoie une réponse propre plutôt que
