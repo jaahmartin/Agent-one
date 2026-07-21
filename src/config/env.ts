@@ -11,6 +11,10 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().min(1, "TWILIO_ACCOUNT_SID manquant dans .env"),
   TWILIO_AUTH_TOKEN: z.string().min(1, "TWILIO_AUTH_TOKEN manquant dans .env"),
   DATABASE_URL: z.string().optional(),
+  // Connexion restreinte (rôle Postgres sans BYPASSRLS) utilisée pour les
+  // requêtes du dashboard, afin que les policies RLS par artisan
+  // s'appliquent réellement (voir drizzle/0002_rls_policies.sql).
+  DATABASE_URL_RUNTIME: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   // Clé JSON du compte de service Google, encodée en base64 (voir README.md).
   GOOGLE_SERVICE_ACCOUNT_KEY: z.string().optional(),

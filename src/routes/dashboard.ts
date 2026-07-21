@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response, Router } from "express";
+import { withArtisanScope } from "../db/client";
 import { findArtisanByDashboardToken } from "../db/repositories/artisansRepo";
 import { findLeadById } from "../db/repositories/leadsRepo";
 import {
@@ -34,29 +35,41 @@ router.get(
       res.status(404).send("Page introuvable.");
       return;
     }
-    const html = await renderDashboard(artisan);
+    const html = await withArtisanScope(artisan.id, () => renderDashboard(artisan));
     res.type("text/html").send(html);
   }),
 );
 
-/** Vérifie que le lead visé appartient bien à l'artisan du jeton — jamais seulement l'id passé en paramètre. */
-async function requireOwnedLead(token: string, leadId: string) {
-  const artisan = await requireArtisan(token);
-  if (!artisan) return { artisan: null, lead: null };
+/**
+ * Vérifie que le lead visé appartient bien à l'artisan du jeton — jamais
+ * seulement l'id passé en paramètre. Le lookup se fait déjà à l'intérieur
+ * du scope RLS de l'artisan : si le lead appartient à quelqu'un d'autre,
+ * la base elle-même ne renvoie aucune ligne (pas seulement ce check).
+ */
+async function requireOwnedLead(artisanId: string, leadId: string) {
   const lead = await findLeadById(leadId);
-  if (!lead || lead.artisanId !== artisan.id) return { artisan, lead: null };
-  return { artisan, lead };
+  if (!lead || lead.artisanId !== artisanId) return null;
+  return lead;
 }
 
 router.post(
   "/:token/callbacks/:leadId/confirm",
   asyncHandler(async (req, res) => {
-    const { lead } = await requireOwnedLead(req.params.token, req.params.leadId);
-    if (!lead) {
+    const artisan = await requireArtisan(req.params.token);
+    if (!artisan) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    await confirmCallbackAction(lead.id);
+    const ok = await withArtisanScope(artisan.id, async () => {
+      const lead = await requireOwnedLead(artisan.id, req.params.leadId);
+      if (!lead) return false;
+      await confirmCallbackAction(lead.id);
+      return true;
+    });
+    if (!ok) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
     res.json({ ok: true });
   }),
 );
@@ -64,12 +77,21 @@ router.post(
 router.post(
   "/:token/callbacks/:leadId/delete",
   asyncHandler(async (req, res) => {
-    const { lead } = await requireOwnedLead(req.params.token, req.params.leadId);
-    if (!lead) {
+    const artisan = await requireArtisan(req.params.token);
+    if (!artisan) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    await deleteCallbackAction(lead.id);
+    const ok = await withArtisanScope(artisan.id, async () => {
+      const lead = await requireOwnedLead(artisan.id, req.params.leadId);
+      if (!lead) return false;
+      await deleteCallbackAction(lead.id);
+      return true;
+    });
+    if (!ok) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
     res.json({ ok: true });
   }),
 );
@@ -93,13 +115,15 @@ router.post(
       res.status(400).json({ error: "invalid_fields" });
       return;
     }
-    await addRevenueAction({
-      artisanId: artisan.id,
-      clientName: String(clientName),
-      jobType: String(jobType),
-      amountEuros,
-      completedAt: completedAtDate,
-    });
+    await withArtisanScope(artisan.id, () =>
+      addRevenueAction({
+        artisanId: artisan.id,
+        clientName: String(clientName),
+        jobType: String(jobType),
+        amountEuros,
+        completedAt: completedAtDate,
+      }),
+    );
     res.json({ ok: true });
   }),
 );
