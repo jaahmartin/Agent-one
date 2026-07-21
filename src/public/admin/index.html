@@ -209,9 +209,9 @@
           <div><div class="nav-card-title">Ton &amp; style</div><div class="nav-card-sub">Ajuster la personnalité d'Agent One</div></div>
           <span class="soon-badge">Bientôt</span>
         </div>
-        <div class="nav-card" style="opacity: 0.6; cursor: default;">
+        <div class="nav-card" onclick="openIssues()">
           <div><div class="nav-card-title">Problèmes signalés</div><div class="nav-card-sub">Historique des corrections à faire</div></div>
-          <span class="soon-badge">Bientôt</span>
+          <span>›</span>
         </div>
       </div>
 
@@ -224,7 +224,15 @@
         <div class="chat-box" id="chat-box"></div>
         <input type="text" id="test-message-input" placeholder="Tape un message client à tester..." onkeydown="if(event.key==='Enter'){event.preventDefault(); sendTestMessage();}">
         <button class="btn-primary" onclick="sendTestMessage()">Simuler la réponse d'Agent One</button>
+        <button class="btn-secondary" onclick="simulateMissedCallOpening()">Simuler un appel manqué (1er message)</button>
         <button class="btn-secondary" onclick="resetLabo()">Recommencer la conversation</button>
+      </div>
+
+      <!-- AGENT ONE - PROBLEMES SIGNALES -->
+      <div class="view" id="view-issues">
+        <div class="back-row" onclick="showView('agentone')">‹ Retour</div>
+        <div class="large-title" style="font-size: 22px; margin-bottom: 12px;">Problèmes signalés</div>
+        <div id="issues-list"></div>
       </div>
 
       <!-- REGLAGES -->

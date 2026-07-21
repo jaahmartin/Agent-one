@@ -9,12 +9,16 @@ import {
   deleteClient,
   getClientProfile,
   listClientsForLabo,
+  listLaboFeedback,
+  reportLaboFeedback,
   toggleClientTask,
+  toggleLaboFeedbackStatus,
   updateClientProfile,
 } from "../services/adminService";
 import { findArtisanById } from "../db/repositories/artisansRepo";
 import {
   INITIAL_CONVERSATION_STATE,
+  simulateMissedCall,
   simulateReply,
   type ConversationState,
 } from "../services/leadService";
@@ -248,6 +252,64 @@ router.post(
 
     const decision = await simulateReply(artisan, conversationState, typeof history === "string" ? history : "", message.trim());
     res.json(decision);
+  }),
+);
+
+/** Simule le tout premier message d'Agent One après un appel manqué — pour entraîner/tester le ton d'ouverture. */
+router.post(
+  "/api/labo/missed-call",
+  asyncHandler(async (req, res) => {
+    const { artisanId } = req.body ?? {};
+    if (!artisanId) {
+      res.status(400).json({ error: "missing_fields" });
+      return;
+    }
+    const artisan = await findArtisanById(artisanId);
+    if (!artisan) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const decision = await simulateMissedCall(artisan);
+    res.json(decision);
+  }),
+);
+
+router.post(
+  "/api/labo/feedback",
+  asyncHandler(async (req, res) => {
+    const { artisanId, conversationExcerpt, actualReply, expectedReply } = req.body ?? {};
+    if (!artisanId || !actualReply || typeof expectedReply !== "string" || !expectedReply.trim()) {
+      res.status(400).json({ error: "missing_fields" });
+      return;
+    }
+    const feedback = await reportLaboFeedback({
+      artisanId,
+      conversationExcerpt: typeof conversationExcerpt === "string" ? conversationExcerpt : "",
+      actualReply,
+      expectedReply: expectedReply.trim(),
+    });
+    res.json(feedback);
+  }),
+);
+
+router.get(
+  "/api/labo/feedback",
+  asyncHandler(async (_req, res) => {
+    const list = await listLaboFeedback();
+    res.json(list);
+  }),
+);
+
+router.post(
+  "/api/labo/feedback/:id/toggle",
+  asyncHandler(async (req, res) => {
+    const { status } = req.body ?? {};
+    if (status !== "ouvert" && status !== "resolu") {
+      res.status(400).json({ error: "invalid_status" });
+      return;
+    }
+    await toggleLaboFeedbackStatus(req.params.id, status);
+    res.json({ ok: true });
   }),
 );
 

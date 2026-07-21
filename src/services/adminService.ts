@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
-import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
-import { appointments, artisans, clientNotes, clientTasks, leads, revenues } from "../db/schema";
+import { appointments, artisans, clientNotes, clientTasks, laboFeedback, leads, revenues } from "../db/schema";
 
 // Toutes les requêtes ci-dessous tournent volontairement sur la connexion
 // d'administration par défaut (jamais withArtisanScope) : l'espace admin a
@@ -167,4 +167,29 @@ export async function listClientsForLabo() {
     .from(artisans)
     .where(eq(artisans.isDemo, false))
     .orderBy(artisans.name);
+}
+
+export async function reportLaboFeedback(params: {
+  artisanId: string;
+  conversationExcerpt: string;
+  actualReply: string;
+  expectedReply: string;
+}) {
+  const db = getDb();
+  const [feedback] = await db.insert(laboFeedback).values(params).returning();
+  return feedback;
+}
+
+export async function listLaboFeedback() {
+  const db = getDb();
+  return db
+    .select({ feedback: laboFeedback, artisanName: artisans.name })
+    .from(laboFeedback)
+    .innerJoin(artisans, eq(laboFeedback.artisanId, artisans.id))
+    .orderBy(desc(laboFeedback.createdAt));
+}
+
+export async function toggleLaboFeedbackStatus(id: string, status: "ouvert" | "resolu") {
+  const db = getDb();
+  await db.update(laboFeedback).set({ status }).where(eq(laboFeedback.id, id));
 }

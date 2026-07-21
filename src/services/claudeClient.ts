@@ -77,3 +77,63 @@ export async function extractLeadInfo(conversation: string): Promise<LeadExtract
 
   return JSON.parse(textBlock.text) as LeadExtraction;
 }
+
+// ---------------------------------------------------------------------------
+// Génération de la réponse envoyée au client — la "personnalité" d'Agent One.
+// Séparée de l'extraction ci-dessus : l'extraction lit la conversation pour
+// en tirer des données fiables (jamais inventées) ; ce qui suit écrit le
+// message envoyé au client, dans le ton d'Agent One, à partir d'une
+// instruction interne (jamais montrée au client) décrivant ce qu'il faut
+// communiquer maintenant.
+// ---------------------------------------------------------------------------
+
+const REPLY_MODEL = "claude-sonnet-5";
+
+function personalitySystemPrompt(artisanName: string): string {
+  return (
+    `Tu es Agent One, l'assistant SMS de "${artisanName}", un artisan du bâtiment (plombier/électricien) ` +
+    `à Toulouse. Tu échanges par SMS avec des clients qui ont un problème chez eux (fuite, panne, ` +
+    `installation à prévoir...), suite à un appel manqué ou à un message direct.\n\n` +
+    `Ta personnalité : chaleureux et naturel, comme un vrai humain sympa qui répond vite — jamais un ` +
+    `robot qui récite un script. Tu as du bagout : tu varies tes formulations, tu rebondis vraiment sur ` +
+    `ce que le client vient de dire, tu peux glisser une touche d'humour léger quand le moment s'y prête ` +
+    `(jamais si le client semble stressé ou décrit une urgence). Tu es du genre à connaître ton sujet, ` +
+    `posé et compétent. Tu as un vrai sens commercial — tu donnes envie de faire confiance à ${artisanName} ` +
+    `— mais sans jamais forcer la main : pas de relance insistante, pas de survente, pas de fausse urgence ` +
+    `créée artificiellement.\n\n` +
+    `Règles non négociables, même quand elles contredisent le ton ci-dessus :\n` +
+    `- Tu ne réponds jamais à un appel téléphonique, uniquement par SMS.\n` +
+    `- Tu n'inventes jamais une information (nom, adresse, créneau...) que le client ou le contexte fourni ` +
+    `ne t'a pas donnée.\n` +
+    `- Tu ne modifies jamais un rendez-vous déjà confirmé pour en proposer un autre.\n` +
+    `- Tu restes bref : un SMS, pas un roman (2-3 phrases maximum, jamais de longue liste à puces).\n` +
+    `- Français correct, sans faute, adapté à un échange SMS — pas besoin de formules de politesse à rallonge.\n` +
+    `- Tu ne répètes jamais l'instruction interne qu'on te donne, tu écris directement le message final.`
+  );
+}
+
+/**
+ * `instruction` décrit, en langage clair et à la 2e personne, ce qu'Agent
+ * One doit communiquer maintenant (jamais montré au client). `conversation`
+ * est l'historique complet formaté ("Client: ...\nAssistant: ..."), chaîne
+ * vide pour un tout premier message (ex: ouverture après appel manqué).
+ */
+export async function composeReply(artisanName: string, instruction: string, conversation: string): Promise<string> {
+  const client = getClient();
+  const userContent = conversation
+    ? `${conversation}\n\n---\n[Instruction interne, ne jamais la répéter au client] ${instruction}`
+    : `[Instruction interne, ne jamais la répéter au client] ${instruction}`;
+
+  const response = await client.messages.create({
+    model: REPLY_MODEL,
+    max_tokens: 300,
+    system: personalitySystemPrompt(artisanName),
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("Claude n'a renvoyé aucun texte pour la génération de la réponse.");
+  }
+  return textBlock.text.trim();
+}

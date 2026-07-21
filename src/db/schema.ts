@@ -184,3 +184,19 @@ export const clientTasks = pgTable("client_tasks", {
   done: boolean("done").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Signalements du Labo Agent One : une réponse jugée mauvaise par Mathéo,
+// avec ce qu'il aurait fallu répondre à la place — sert de base pour
+// améliorer le moteur plus tard. Même logique RLS que les tables ci-dessus
+// (aucune policy pour app_runtime : jamais visible depuis le dashboard artisan).
+export const laboFeedback = pgTable("labo_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  artisanId: uuid("artisan_id")
+    .notNull()
+    .references(() => artisans.id, { onDelete: "cascade" }),
+  conversationExcerpt: text("conversation_excerpt").notNull(),
+  actualReply: text("actual_reply").notNull(),
+  expectedReply: text("expected_reply").notNull(),
+  status: text("status").notNull().default("ouvert"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
