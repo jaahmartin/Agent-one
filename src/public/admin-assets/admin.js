@@ -29,9 +29,15 @@ async function apiCall(path, options) {
 
 async function createClient() {
   const name = document.getElementById('new-client-name').value.trim();
-  const metier = document.getElementById('new-client-metier').value.trim();
   if (!name) { alert('Le nom du client est obligatoire.'); return; }
-  const result = await apiCall('/admin/api/clients', { body: JSON.stringify({ name, metier: metier || null }) });
+  const payload = {
+    name,
+    contactFirstName: document.getElementById('new-client-first-name').value.trim() || null,
+    contactLastName: document.getElementById('new-client-last-name').value.trim() || null,
+    metier: document.getElementById('new-client-metier').value.trim() || null,
+    activityDescription: document.getElementById('new-client-activity').value.trim() || null,
+  };
+  const result = await apiCall('/admin/api/clients', { body: JSON.stringify(payload) });
   if (result) location.reload();
 }
 
@@ -49,14 +55,17 @@ function renderProfile(data) {
   const a = data.artisan;
   document.getElementById('profile-name').textContent = a.name;
   document.getElementById('profile-name-input').value = a.name;
+  document.getElementById('profile-first-name-input').value = a.contactFirstName || '';
+  document.getElementById('profile-last-name-input').value = a.contactLastName || '';
   document.getElementById('profile-metier-input').value = a.metier || '';
+  document.getElementById('profile-activity-input').value = a.activityDescription || '';
   document.getElementById('profile-twilio-input').value = a.twilioNumber || '';
   document.getElementById('profile-forwarding-input').value = a.forwardingNumber || '';
 
   const statusEl = document.getElementById('profile-status');
-  statusEl.textContent = statusLabel(a.status);
-  statusEl.className = 'status-pill ' + a.status;
-  document.getElementById('profile-pause-btn').textContent = a.status === 'en_pause' ? 'Réactiver' : 'Mettre en pause';
+  statusEl.textContent = statusLabel(data.status);
+  statusEl.className = 'status-pill ' + data.status;
+  document.getElementById('profile-pause-btn').textContent = data.status === 'en_pause' ? 'Réactiver' : 'Mettre en pause';
   document.getElementById('profile-link').textContent = location.origin + '/dashboard/' + a.dashboardToken;
 
   document.getElementById('profile-notes-list').innerHTML = data.notes.length
@@ -81,7 +90,10 @@ function escapeHtml(value) {
 async function saveProfile() {
   const fields = {
     name: document.getElementById('profile-name-input').value.trim(),
+    contactFirstName: document.getElementById('profile-first-name-input').value.trim() || null,
+    contactLastName: document.getElementById('profile-last-name-input').value.trim() || null,
     metier: document.getElementById('profile-metier-input').value.trim() || null,
+    activityDescription: document.getElementById('profile-activity-input').value.trim() || null,
     twilioNumber: document.getElementById('profile-twilio-input').value.trim() || null,
     forwardingNumber: document.getElementById('profile-forwarding-input').value.trim() || null,
   };

@@ -139,15 +139,25 @@ router.get(
   }),
 );
 
+function cleanOptionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 router.post(
   "/api/clients",
   asyncHandler(async (req, res) => {
-    const { name, metier } = req.body ?? {};
-    if (!name || typeof name !== "string") {
+    const { name, contactFirstName, contactLastName, metier, activityDescription } = req.body ?? {};
+    if (!name || typeof name !== "string" || !name.trim()) {
       res.status(400).json({ error: "missing_name" });
       return;
     }
-    const artisan = await createPendingClient(name.trim(), typeof metier === "string" && metier.trim() ? metier.trim() : null);
+    const artisan = await createPendingClient({
+      name: name.trim(),
+      contactFirstName: cleanOptionalString(contactFirstName),
+      contactLastName: cleanOptionalString(contactLastName),
+      metier: cleanOptionalString(metier),
+      activityDescription: cleanOptionalString(activityDescription),
+    });
     res.json({ id: artisan.id });
   }),
 );
@@ -155,10 +165,13 @@ router.post(
 router.post(
   "/api/clients/:id",
   asyncHandler(async (req, res) => {
-    const { name, metier, twilioNumber, forwardingNumber, subscriptionStatus } = req.body ?? {};
+    const { name, contactFirstName, contactLastName, metier, activityDescription, twilioNumber, forwardingNumber, subscriptionStatus } = req.body ?? {};
     const artisan = await updateClientProfile(req.params.id, {
       ...(typeof name === "string" && name.trim() ? { name: name.trim() } : {}),
-      ...(metier !== undefined ? { metier } : {}),
+      ...(contactFirstName !== undefined ? { contactFirstName: cleanOptionalString(contactFirstName) } : {}),
+      ...(contactLastName !== undefined ? { contactLastName: cleanOptionalString(contactLastName) } : {}),
+      ...(metier !== undefined ? { metier: cleanOptionalString(metier) } : {}),
+      ...(activityDescription !== undefined ? { activityDescription: cleanOptionalString(activityDescription) } : {}),
       ...(twilioNumber !== undefined ? { twilioNumber } : {}),
       ...(forwardingNumber !== undefined ? { forwardingNumber } : {}),
       ...(typeof subscriptionStatus === "string" ? { subscriptionStatus } : {}),

@@ -16,11 +16,15 @@
     --positive: #229955; --positive-bg: #E3F6EA;
     --alert: #D64545; --alert-bg: #FBEAEA;
     --pending: #B8860B; --pending-bg: #FBF3E0;
+    /* Largeur de la colonne app, partagée par .shell/.tabbar/.fab-anchor —
+       change une seule fois ici pour que les trois restent alignés. */
+    --shell-width: 480px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
 
-  .shell { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 90px; }
+  .shell { max-width: var(--shell-width); margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 90px; }
   .app { padding: 18px 18px 24px; }
 
   .header { padding: 8px 0 14px; }
@@ -36,7 +40,11 @@
   .view.active-view { display: block; }
 
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 14px; aspect-ratio: 1.15/1; display: flex; flex-direction: column; justify-content: space-between; }
+  /* min-width:0 + overflow:hidden : évite qu'un libellé plus long dans une
+     seule carte n'élargisse toute sa colonne (et donc les autres cartes de
+     la même colonne) au-delà de sa part de 1fr — même bug que sur le
+     dashboard artisan, corrigé ici avant qu'il ne se voie. */
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 14px; aspect-ratio: 1.15/1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
   .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
   .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
   .stat-delta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
@@ -54,14 +62,22 @@
   .client-amount { font-size: 14px; font-weight: 600; margin-top: 4px; }
   .empty-state { color: var(--text-secondary); font-size: 13.5px; padding: 8px 4px; }
 
-  .fab { position: fixed; bottom: 100px; left: 50%; transform: translateX(calc(-50% + 200px)); width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 6px 16px rgba(12,0,182,0.35); z-index: 15; cursor: pointer; }
+  /* .fab-anchor a exactement la même largeur/centrage que .shell (via
+     --shell-width) mais est fixe (reste à l'écran pendant le scroll) et
+     invisible (height:0) — le bouton, positionné en absolu par rapport à
+     cette ancre, se cale donc toujours sur le bord droit RÉEL de la
+     colonne, qu'elle occupe tout l'écran (téléphone) ou soit centrée avec
+     des marges (PC), plutôt qu'un décalage fixe qui ne marchait que pour
+     une largeur d'écran précise (il finissait hors écran sur téléphone). */
+  .fab-anchor { position: fixed; bottom: 90px; left: 0; right: 0; max-width: var(--shell-width); margin: 0 auto; height: 0; pointer-events: none; z-index: 15; }
+  .fab { position: absolute; right: 22px; bottom: 0; width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 6px 16px rgba(12,0,182,0.35); cursor: pointer; pointer-events: auto; }
 
   .back-row { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 15px; font-weight: 500; margin-bottom: 8px; padding-top: 4px; cursor: pointer; }
   .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
   .detail-row:last-child { border-bottom: none; }
   .detail-list { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 4px 14px; margin-bottom: 14px; }
 
-  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; height: 78px; background: rgba(255,255,255,0.94); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; z-index: 20; }
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; max-width: var(--shell-width); margin: 0 auto; height: 78px; background: rgba(255,255,255,0.94); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; z-index: 20; }
   .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding-bottom: 12px; color: var(--text-secondary); font-size: 10.5px; font-weight: 500; cursor: pointer; }
   .tab.active { color: var(--accent); }
   .tab svg { width: 22px; height: 22px; }
@@ -69,7 +85,11 @@
   .btn-primary { background: var(--accent); color: #fff; border: none; padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
   .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
   .btn-danger { background: var(--alert-bg); border: none; color: var(--alert); padding: 11px 18px; border-radius: 100px; font-family: inherit; font-weight: 600; font-size: 14px; width: 100%; margin-top: 8px; cursor: pointer; }
-  input[type=text], input[type=email], textarea, select { width: 100%; font-family: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; }
+  /* font-size >= 16px : sous ce seuil, Safari iOS zoome automatiquement la
+     page à chaque fois qu'on touche un champ — très désagréable au doigt,
+     et une cause fréquente d'impression de "ça rame" sur téléphone. */
+  input[type=text], input[type=email], textarea, select { width: 100%; font-family: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
 
   .chat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; min-height: 220px; margin-bottom: 10px; display: flex; flex-direction: column; }
   .bubble { max-width: 80%; padding: 9px 13px; border-radius: 16px; font-size: 13.5px; margin-bottom: 8px; line-height: 1.4; }
@@ -92,6 +112,17 @@
   .task-item.done span { text-decoration: line-through; color: var(--text-secondary); }
 
   .soon-badge { font-size: 11px; color: var(--pending); background: var(--pending-bg); padding: 2px 8px; border-radius: 100px; }
+
+  /* --- Écran large (PC) : la colonne s'élargit et respire davantage,
+     plutôt que de rester une bande étroite de téléphone au milieu d'un
+     grand écran gris. .tabbar et .fab-anchor suivent automatiquement via
+     --shell-width. --- */
+  @media (min-width: 720px) {
+    :root { --shell-width: 720px; }
+    .shell { box-shadow: 0 0 0 1px var(--border); }
+    .app { padding: 28px 34px 24px; }
+    .grid2 { grid-template-columns: repeat(4, 1fr); }
+  }
 </style>
 </head>
 <body>
@@ -145,10 +176,16 @@
       <div class="view" id="view-new-client">
         <div class="back-row" onclick="showView('clients')">‹ Retour</div>
         <div class="large-title" style="font-size: 22px; margin-bottom: 12px;">Nouveau client</div>
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Nom de l'entreprise</label>
+        <label>Nom de l'entreprise</label>
         <input type="text" id="new-client-name" placeholder="Ex: Jean-Marc Plomberie">
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Métier</label>
+        <label>Prénom du contact</label>
+        <input type="text" id="new-client-first-name" placeholder="Ex: Jean-Marc">
+        <label>Nom du contact</label>
+        <input type="text" id="new-client-last-name" placeholder="Ex: Dupont">
+        <label>Métier</label>
         <input type="text" id="new-client-metier" placeholder="Ex: Plombier">
+        <label>Description de l'activité</label>
+        <textarea id="new-client-activity" rows="4" placeholder="Ce que fait l'entreprise, ses prestations, le type de clientèle habituelle... — c'est ce qu'Agent One utilisera pour comprendre à qui il parle et quelles questions poser."></textarea>
         <button class="btn-primary" onclick="createClient()">Créer la fiche client</button>
       </div>
 
@@ -161,13 +198,19 @@
         </div>
 
         <div class="section-title">Informations</div>
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Nom</label>
+        <label>Nom de l'entreprise</label>
         <input type="text" id="profile-name-input">
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Métier</label>
+        <label>Prénom du contact</label>
+        <input type="text" id="profile-first-name-input">
+        <label>Nom du contact</label>
+        <input type="text" id="profile-last-name-input">
+        <label>Métier</label>
         <input type="text" id="profile-metier-input">
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Numéro Twilio (client final)</label>
+        <label>Description de l'activité</label>
+        <textarea id="profile-activity-input" rows="4" placeholder="Ce que fait l'entreprise, ses prestations, le type de clientèle habituelle... — c'est ce qu'Agent One utilise pour comprendre à qui il parle et quelles questions poser."></textarea>
+        <label>Numéro Twilio (client final)</label>
         <input type="text" id="profile-twilio-input" placeholder="+33...">
-        <label style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">Numéro portable de l'artisan</label>
+        <label>Numéro portable de l'artisan</label>
         <input type="text" id="profile-forwarding-input" placeholder="+33...">
         <button class="btn-secondary" onclick="saveProfile()">Enregistrer</button>
 
@@ -246,7 +289,7 @@
 
     </div>
 
-    <div class="fab" id="fab" onclick="showView('new-client')">+</div>
+    <div class="fab-anchor"><div class="fab" id="fab" onclick="showView('new-client')">+</div></div>
 
     <div class="tabbar">
       <div class="tab active" data-tab="overview" onclick="showView('overview')">

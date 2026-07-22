@@ -102,18 +102,29 @@ export async function getClientProfile(artisanId: string) {
     .where(eq(clientTasks.artisanId, artisanId))
     .orderBy(sql`${clientTasks.createdAt} desc`);
 
-  return { artisan, revenueTotalCents: Number(revenueTotal), notes, tasks };
+  return {
+    artisan,
+    status: normalizeSubscriptionStatus(artisan.subscriptionStatus),
+    revenueTotalCents: Number(revenueTotal),
+    notes,
+    tasks,
+  };
 }
 
 /** Crée une fiche client "en attente" — complétable ensuite depuis son profil. */
-export async function createPendingClient(name: string, metier: string | null) {
+export async function createPendingClient(params: {
+  name: string;
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  metier: string | null;
+  activityDescription: string | null;
+}) {
   const db = getDb();
   const dashboardToken = randomBytes(24).toString("base64url");
   const [artisan] = await db
     .insert(artisans)
     .values({
-      name,
-      metier,
+      ...params,
       dashboardToken,
       subscriptionStatus: "en_attente",
       isDemo: false,
@@ -126,7 +137,10 @@ export async function updateClientProfile(
   artisanId: string,
   fields: Partial<{
     name: string;
+    contactFirstName: string | null;
+    contactLastName: string | null;
     metier: string | null;
+    activityDescription: string | null;
     twilioNumber: string | null;
     forwardingNumber: string | null;
     notificationEmail: string | null;

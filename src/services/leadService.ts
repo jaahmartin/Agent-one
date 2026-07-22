@@ -139,7 +139,7 @@ async function decideQualification(
   state: ConversationState,
   fullHistory: string,
 ): Promise<ConversationDecision> {
-  const extraction = await extractLeadInfo(fullHistory);
+  const extraction = await extractLeadInfo(fullHistory, artisan);
   const qualifiedState: ConversationState = {
     ...state,
     name: extraction.name ?? state.name,
@@ -150,7 +150,7 @@ async function decideQualification(
   };
 
   if (extraction.missing_fields.length > 0) {
-    const reply = await composeReply(artisan.name, missingFieldInstruction(qualifiedState, extraction.missing_fields), fullHistory);
+    const reply = await composeReply(artisan, missingFieldInstruction(qualifiedState, extraction.missing_fields), fullHistory);
     return { reply, nextState: qualifiedState, action: { type: "none" } };
   }
 
@@ -159,19 +159,19 @@ async function decideQualification(
 
 async function decideProposeSlot(artisan: Artisan, state: ConversationState, fullHistory: string): Promise<ConversationDecision> {
   if (!artisan.googleCalendarId) {
-    const reply = await composeReply(artisan.name, noSlotInstruction(artisan.name), fullHistory);
+    const reply = await composeReply(artisan, noSlotInstruction(artisan.name), fullHistory);
     return { reply, nextState: state, action: { type: "none" } };
   }
 
   const slots = await getAvailableSlots(artisan.googleCalendarId);
   if (slots.length === 0) {
-    const reply = await composeReply(artisan.name, noSlotInstruction(artisan.name), fullHistory);
+    const reply = await composeReply(artisan, noSlotInstruction(artisan.name), fullHistory);
     return { reply, nextState: state, action: { type: "none" } };
   }
 
   const [firstSlot] = slots;
   const nextState: ConversationState = { ...state, status: "creneau_propose", proposedSlot: firstSlot };
-  const reply = await composeReply(artisan.name, proposeSlotInstruction(formatSlotFr(firstSlot.start)), fullHistory);
+  const reply = await composeReply(artisan, proposeSlotInstruction(formatSlotFr(firstSlot.start)), fullHistory);
   return { reply, nextState, action: { type: "propose_slot", slot: firstSlot } };
 }
 
@@ -183,16 +183,16 @@ async function decideSlotResponse(
 ): Promise<ConversationDecision> {
   if (!looksLikeConfirmation(incomingMessage) || !state.proposedSlot) {
     const slotLabel = state.proposedSlot ? formatSlotFr(state.proposedSlot.start) : "proposé";
-    const reply = await composeReply(artisan.name, reaskInstruction(slotLabel), fullHistory);
+    const reply = await composeReply(artisan, reaskInstruction(slotLabel), fullHistory);
     return { reply, nextState: state, action: { type: "none" } };
   }
   const slot = state.proposedSlot;
-  const reply = await composeReply(artisan.name, confirmInstruction(formatSlotFr(slot.start)), fullHistory);
+  const reply = await composeReply(artisan, confirmInstruction(formatSlotFr(slot.start)), fullHistory);
   return { reply, nextState: state, action: { type: "confirm_appointment", slot } };
 }
 
 async function decideMissedCallOpening(artisan: Artisan): Promise<ConversationDecision> {
-  const reply = await composeReply(artisan.name, MISSED_CALL_INSTRUCTION, "");
+  const reply = await composeReply(artisan, MISSED_CALL_INSTRUCTION, "");
   return { reply, nextState: { ...INITIAL_CONVERSATION_STATE, status: "en_qualification" }, action: { type: "none" } };
 }
 
@@ -304,7 +304,7 @@ async function applyDecision(artisan: Artisan, lead: Lead, decision: Conversatio
     case "confirm_appointment": {
       const appointment = await findLatestProposedAppointmentByLead(lead.id);
       if (!appointment) {
-        const reply = await composeReply(artisan.name, reaskInstruction("proposé"), await buildConversationText(lead.id));
+        const reply = await composeReply(artisan, reaskInstruction("proposé"), await buildConversationText(lead.id));
         await sendAndLog(lead, artisan, reply);
         return;
       }

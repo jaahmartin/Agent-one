@@ -1,6 +1,25 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../config/env";
 import { listRecentLaboFeedback } from "../db/repositories/laboFeedbackRepo";
+import type { artisans } from "../db/schema";
+
+type ArtisanContext = Pick<typeof artisans.$inferSelect, "name" | "metier" | "activityDescription">;
+
+/**
+ * Description de l'activité de CET artisan (métier + description libre
+ * saisie dans l'espace admin) — contrairement aux corrections du labo
+ * (globales, tous artisans), ce contexte est propre à l'artisan concerné :
+ * c'est ce qui permet à Agent One de savoir à quel type de client il parle
+ * et quel genre de questions/problèmes sont probables pour cette
+ * entreprise précise, dès que la fiche client est complétée dans l'admin.
+ */
+function activityContextBlock(artisan: ArtisanContext): string {
+  if (!artisan.metier && !artisan.activityDescription) return "";
+  const parts: string[] = [];
+  if (artisan.metier) parts.push(`Métier : ${artisan.metier}`);
+  if (artisan.activityDescription) parts.push(`Description de l'activité : ${artisan.activityDescription}`);
+  return `\n\nContexte sur l'activité de ${artisan.name} (utilise-le pour savoir à quel type de client tu t'adresses et quelles questions/problèmes sont probables) :\n${parts.join("\n")}`;
+}
 
 let _client: Anthropic | null = null;
 
@@ -60,13 +79,17 @@ const SYSTEM_PROMPT =
  * ancien au plus récent, déjà formaté en texte simple "Client: ..." /
  * "Assistant: ...". Claude renvoie une extraction à jour de l'ensemble de
  * la conversation à chaque appel (pas d'état à faire évoluer nous-mêmes).
+ * `artisan` (optionnel) donne le contexte métier/activité de l'artisan
+ * concerné, pour une catégorisation de la demande plus fine (ex: reconnaître
+ * un vocabulaire propre à son activité).
  */
-export async function extractLeadInfo(conversation: string): Promise<LeadExtraction> {
+export async function extractLeadInfo(conversation: string, artisan?: ArtisanContext): Promise<LeadExtraction> {
   const client = getClient();
+  const system = SYSTEM_PROMPT + (artisan ? activityContextBlock(artisan) : "");
   const response = await client.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 512,
-    system: SYSTEM_PROMPT,
+    system,
     output_config: { format: { type: "json_schema", schema: LEAD_EXTRACTION_SCHEMA } },
     messages: [{ role: "user", content: conversation }],
   });
@@ -90,7 +113,8 @@ export async function extractLeadInfo(conversation: string): Promise<LeadExtract
 
 const REPLY_MODEL = "claude-sonnet-5";
 
-function personalitySystemPrompt(artisanName: string, feedbackSection: string): string {
+function personalitySystemPrompt(artisan: ArtisanContext, feedbackSection: string): string {
+  const artisanName = artisan.name;
   return (
     `Tu es Agent One, l'assistant SMS de "${artisanName}", un artisan du bâtiment (plombier/électricien) ` +
     `à Toulouse. Tu échanges par SMS avec des clients qui ont un problème chez eux (fuite, panne, ` +
@@ -110,6 +134,7 @@ function personalitySystemPrompt(artisanName: string, feedbackSection: string): 
     `- Tu restes bref : un SMS, pas un roman (2-3 phrases maximum, jamais de longue liste à puces).\n` +
     `- Français correct, sans faute, adapté à un échange SMS — pas besoin de formules de politesse à rallonge.\n` +
     `- Tu ne répètes jamais l'instruction interne qu'on te donne, tu écris directement le message final.` +
+    activityContextBlock(artisan) +
     feedbackSection
   );
 }
@@ -151,7 +176,7 @@ async function buildFeedbackSection(): Promise<string> {
  * est l'historique complet formaté ("Client: ...\nAssistant: ..."), chaîne
  * vide pour un tout premier message (ex: ouverture après appel manqué).
  */
-export async function composeReply(artisanName: string, instruction: string, conversation: string): Promise<string> {
+export async function composeReply(artisan: ArtisanContext, instruction: string, conversation: string): Promise<string> {
   const client = getClient();
   const userContent = conversation
     ? `${conversation}\n\n---\n[Instruction interne, ne jamais la répéter au client] ${instruction}`
@@ -162,7 +187,7 @@ export async function composeReply(artisanName: string, instruction: string, con
   const response = await client.messages.create({
     model: REPLY_MODEL,
     max_tokens: 300,
-    system: personalitySystemPrompt(artisanName, feedbackSection),
+    system: personalitySystemPrompt(artisan, feedbackSection),
     messages: [{ role: "user", content: userContent }],
   });
 

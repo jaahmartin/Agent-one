@@ -69,6 +69,13 @@ export const artisans = pgTable("artisans", {
   isDemo: boolean("is_demo").notNull().default(false),
   // Utilisé pour la salutation du dashboard ("Bonjour <prénom>").
   contactFirstName: text("contact_first_name"),
+  contactLastName: text("contact_last_name"),
+  // Description libre de l'activité de l'entreprise (prestations, type de
+  // clientèle habituelle...) — injectée dans les prompts d'extraction et de
+  // génération de réponse (voir claudeClient.ts) pour qu'Agent One sache à
+  // quel type de client il s'adresse et quelles questions poser, en plus du
+  // simple libellé "metier" ci-dessus.
+  activityDescription: text("activity_description"),
   notificationEmail: text("notification_email"),
   subscriptionStatus: text("subscription_status"),
   subscriptionRenewsOn: timestamp("subscription_renews_on"),
