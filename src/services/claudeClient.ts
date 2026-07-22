@@ -148,18 +148,41 @@ function personalitySystemPrompt(artisan: ArtisanContext, feedbackSection: strin
  * à toutes les conversations suivantes, tous artisans confondus.
  */
 async function buildFeedbackSection(): Promise<string> {
-  const feedback = await listRecentLaboFeedback(15);
+  const rawFeedback = await listRecentLaboFeedback(30);
+
+  // Déduplique par contenu : un même correctif cliqué/enregistré plusieurs
+  // fois (ex: double-clic, ou clic répété faute de confirmation visible)
+  // ne doit compter qu'une fois — répéter le même texte 5-10 fois dans le
+  // prompt peut faire échouer la génération de réponse (déjà arrivé en
+  // conditions réelles), sans rien apporter de plus qu'une seule occurrence.
+  const seen = new Set<string>();
+  const feedback = rawFeedback
+    .filter((f) => {
+      const key = `${f.actualReply}|${f.reasoning}|${f.expectedReplies.join("|")}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    // Plafonné bas (8, contexte/raisons raccourcis) : un prompt système trop
+    // long/chargé de corrections a déjà fait échouer la génération en
+    // conditions réelles (le modèle "réfléchit" tellement qu'il épuise le
+    // budget de tokens avant d'écrire la réponse). Les corrections les plus
+    // récentes priment de toute façon sur les plus anciennes.
+    .slice(0, 8);
+
   if (feedback.length === 0) return "";
+
+  const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}...` : text);
 
   const entries = feedback
     .map((f, i) => {
-      const excerpt = f.conversationExcerpt.length > 300 ? `[...] ${f.conversationExcerpt.slice(-300)}` : f.conversationExcerpt;
-      const examples = f.expectedReplies.map((r) => `"${r}"`).join(" / ");
+      const excerpt = truncate(f.conversationExcerpt, 150);
+      const examples = f.expectedReplies.map((r) => `"${truncate(r, 150)}"`).join(" / ");
       return (
         `${i + 1}. Contexte : ${excerpt || "(premier message, pas encore de contexte)"}\n` +
-        `   Réponse à NE PAS reproduire : "${f.actualReply}"\n` +
+        `   Réponse à NE PAS reproduire : "${truncate(f.actualReply, 150)}"\n` +
         `   Bonnes réponses possibles pour ce genre de cas : ${examples}\n` +
-        `   Pourquoi : ${f.reasoning}`
+        `   Pourquoi : ${truncate(f.reasoning, 200)}`
       );
     })
     .join("\n\n");
@@ -186,13 +209,21 @@ export async function composeReply(artisan: ArtisanContext, instruction: string,
 
   const response = await client.messages.create({
     model: REPLY_MODEL,
-    max_tokens: 300,
+    // 300 s'est révélé insuffisant en conditions réelles : avec un prompt
+    // système déjà conséquent (corrections du labo + contexte d'activité),
+    // le modèle peut consommer une partie du budget en raisonnement interne
+    // avant même d'écrire la réponse, et se retrouver coupé sans avoir rien
+    // écrit (stop_reason "max_tokens", aucun bloc de texte) — la réponse
+    // finale reste courte (un SMS), cette marge ne sert qu'à ne jamais
+    // tronquer avant qu'elle ne soit écrite.
+    max_tokens: 2048,
     system: personalitySystemPrompt(artisan, feedbackSection),
     messages: [{ role: "user", content: userContent }],
   });
 
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
+    console.error(`composeReply : aucun bloc de texte renvoyé (stop_reason=${response.stop_reason}).`);
     throw new Error("Claude n'a renvoyé aucun texte pour la génération de la réponse.");
   }
   return textBlock.text.trim();

@@ -10,6 +10,19 @@ function showView(id) {
   window.scrollTo(0, 0);
 }
 
+/** Bandeau de confirmation en haut de l'écran — visible même si on ne regarde pas l'endroit exact où l'action a eu lieu. */
+function showToast(message, tone) {
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (tone === 'error' ? ' error' : '');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 250);
+  }, 3800);
+}
+
 async function apiCall(path, options) {
   const response = await fetch(path, {
     method: 'POST',
@@ -17,7 +30,7 @@ async function apiCall(path, options) {
     ...options,
   });
   if (!response.ok) {
-    alert("Une erreur est survenue, merci de réessayer.");
+    showToast("Une erreur est survenue, merci de réessayer.", "error");
     return null;
   }
   return response.json();
@@ -29,7 +42,7 @@ async function apiCall(path, options) {
 
 async function createClient() {
   const name = document.getElementById('new-client-name').value.trim();
-  if (!name) { alert('Le nom du client est obligatoire.'); return; }
+  if (!name) { showToast('Le nom du client est obligatoire.', 'error'); return; }
   const payload = {
     name,
     contactFirstName: document.getElementById('new-client-first-name').value.trim() || null,
@@ -53,6 +66,7 @@ async function openProfile(id) {
 
 function renderProfile(data) {
   const a = data.artisan;
+  document.getElementById('profile-save-confirm').innerHTML = '';
   document.getElementById('profile-name').textContent = a.name;
   document.getElementById('profile-name-input').value = a.name;
   document.getElementById('profile-first-name-input').value = a.contactFirstName || '';
@@ -88,6 +102,7 @@ function escapeHtml(value) {
 }
 
 async function saveProfile() {
+  const activityFilled = document.getElementById('profile-activity-input').value.trim().length > 0;
   const fields = {
     name: document.getElementById('profile-name-input').value.trim(),
     contactFirstName: document.getElementById('profile-first-name-input').value.trim() || null,
@@ -97,8 +112,29 @@ async function saveProfile() {
     twilioNumber: document.getElementById('profile-twilio-input').value.trim() || null,
     forwardingNumber: document.getElementById('profile-forwarding-input').value.trim() || null,
   };
+
+  const saveBtn = document.getElementById('profile-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Enregistrement...';
+
   const result = await apiCall('/admin/api/clients/' + currentProfileId, { body: JSON.stringify(fields) });
-  if (result) openProfile(currentProfileId);
+
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Enregistrer';
+  if (!result) return;
+
+  // Message honnête : pas d'étape séparée à attendre de mon côté — dès que
+  // c'est enregistré en base, la prochaine réponse d'Agent One pour ce
+  // client utilise déjà cette description d'activité (voir composeReply
+  // côté serveur, qui la lit à chaque appel). renderProfile() vide ce
+  // bandeau à chaque ouverture de fiche — on l'affiche donc APRÈS le
+  // re-rendu, sinon il serait effacé aussitôt qu'écrit.
+  await openProfile(currentProfileId);
+  const confirmMsg = activityFilled
+    ? "✓ Enregistré — Agent One utilise déjà cette description d'activité pour ce client, dès la prochaine conversation."
+    : '✓ Enregistré';
+  document.getElementById('profile-save-confirm').innerHTML = `<div class="confirm-banner">${confirmMsg}</div>`;
+  showToast(activityFilled ? "✓ Enregistré — Agent One est déjà à jour pour ce client" : '✓ Enregistré');
 }
 
 async function toggleClientStatus() {
@@ -116,7 +152,7 @@ async function deleteClient() {
 
 function copyProfileLink() {
   const link = document.getElementById('profile-link').textContent;
-  navigator.clipboard.writeText(link).then(() => alert('Lien copié.'));
+  navigator.clipboard.writeText(link).then(() => showToast('✓ Lien copié'));
 }
 
 async function addNote() {
@@ -154,7 +190,7 @@ async function openLabo() {
     laboClients = await apiCall('/admin/api/labo/clients', { method: 'GET' }) || [];
   }
   if (laboClients.length === 0) {
-    alert("Aucun client à tester pour l'instant — crée d'abord une fiche client.");
+    showToast("Aucun client à tester pour l'instant — crée d'abord une fiche client.", 'error');
     return;
   }
   document.getElementById('labo-client-pills').innerHTML = laboClients
@@ -272,8 +308,14 @@ async function submitFlag(turnIndex) {
   const form = document.getElementById('flag-form-' + turnIndex);
   const expectedReplies = Array.from(form.querySelectorAll('.flag-example')).map(t => t.value.trim()).filter(Boolean);
   const reasoning = document.getElementById('flag-reasoning-' + turnIndex).value.trim();
-  if (expectedReplies.length === 0) { alert('Ajoute au moins un exemple de bonne réponse.'); return; }
-  if (!reasoning) { alert('Explique le pourquoi du comment.'); return; }
+  if (expectedReplies.length === 0) { showToast('Ajoute au moins un exemple de bonne réponse.', 'error'); return; }
+  if (!reasoning) { showToast('Explique le pourquoi du comment.', 'error'); return; }
+
+  // Retour immédiat au clic, avant même la réponse du serveur : on sait
+  // tout de suite que le clic a bien été pris en compte.
+  const submitBtn = form.querySelector('.btn-primary');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Envoi en cours...';
 
   const turn = laboTurns[turnIndex];
   const result = await apiCall('/admin/api/labo/feedback', {
@@ -285,8 +327,13 @@ async function submitFlag(turnIndex) {
       reasoning,
     }),
   });
-  if (!result) return;
-  form.outerHTML = `<div style="font-size:12px; color:var(--positive); margin-top:-4px; margin-bottom:8px;">✓ Signalé et déjà pris en compte pour les prochaines réponses d'Agent One</div>`;
+  if (!result) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Envoyer le signalement';
+    return;
+  }
+  form.outerHTML = `<div class="confirm-banner">✓ Signalé et déjà pris en compte pour les prochaines réponses d'Agent One</div>`;
+  showToast('✓ Signalement envoyé — Agent One en tient déjà compte');
 }
 
 // ---------------------------------------------------------------------------
