@@ -10,6 +10,7 @@ import {
   getClientProfile,
   listClientsForLabo,
   listLaboFeedback,
+  removeLaboFeedback,
   reportLaboFeedback,
   toggleClientTask,
   toggleLaboFeedbackStatus,
@@ -326,6 +327,14 @@ router.post(
       return;
     }
     await toggleLaboFeedbackStatus(req.params.id, status);
+    res.json({ ok: true });
+  }),
+);
+
+router.post(
+  "/api/labo/feedback/:id/delete",
+  asyncHandler(async (req, res) => {
+    await removeLaboFeedback(req.params.id);
     res.json({ ok: true });
   }),
 );

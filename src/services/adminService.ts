@@ -2,7 +2,12 @@ import { randomBytes } from "crypto";
 import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { appointments, artisans, clientNotes, clientTasks, leads, revenues } from "../db/schema";
-import { insertLaboFeedback, listLaboFeedbackWithArtisan, updateLaboFeedbackStatus } from "../db/repositories/laboFeedbackRepo";
+import {
+  deleteLaboFeedback,
+  insertLaboFeedback,
+  listLaboFeedbackWithArtisan,
+  updateLaboFeedbackStatus,
+} from "../db/repositories/laboFeedbackRepo";
 
 // Toutes les requêtes ci-dessous tournent volontairement sur la connexion
 // d'administration par défaut (jamais withArtisanScope) : l'espace admin a
@@ -187,3 +192,4 @@ export async function listClientsForLabo() {
 export const reportLaboFeedback = insertLaboFeedback;
 export const listLaboFeedback = listLaboFeedbackWithArtisan;
 export const toggleLaboFeedbackStatus = updateLaboFeedbackStatus;
+export const removeLaboFeedback = deleteLaboFeedback;

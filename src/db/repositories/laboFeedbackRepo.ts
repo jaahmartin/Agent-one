@@ -37,3 +37,8 @@ export async function updateLaboFeedbackStatus(id: string, status: "ouvert" | "r
   const db = getDb();
   await db.update(laboFeedback).set({ status }).where(eq(laboFeedback.id, id));
 }
+
+export async function deleteLaboFeedback(id: string) {
+  const db = getDb();
+  await db.delete(laboFeedback).where(eq(laboFeedback.id, id));
+}

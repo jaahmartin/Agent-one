@@ -345,9 +345,12 @@ async function openIssues() {
   document.getElementById('issues-list').innerHTML = issues.length
     ? `<div class="detail-list">` + issues.map(({ feedback, artisanName }) => `
         <div class="detail-row" style="flex-direction:column; align-items:stretch; gap:6px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <span style="font-weight:600; font-size:13.5px;">${escapeHtml(artisanName)}</span>
-            <span class="status-pill ${feedback.status === 'ouvert' ? 'en_attente' : 'actif'}" style="cursor:pointer;" onclick="toggleIssue('${feedback.id}', '${feedback.status === 'ouvert' ? 'resolu' : 'ouvert'}')">${feedback.status === 'ouvert' ? 'Ouvert' : 'Résolu'}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="status-pill ${feedback.status === 'ouvert' ? 'en_attente' : 'actif'}" style="cursor:pointer;" onclick="toggleIssue('${feedback.id}', '${feedback.status === 'ouvert' ? 'resolu' : 'ouvert'}')">${feedback.status === 'ouvert' ? 'Ouvert' : 'Résolu'}</span>
+              <span style="cursor:pointer; color:var(--text-secondary); font-size:12.5px;" onclick="deleteIssue('${feedback.id}')">Supprimer</span>
+            </div>
           </div>
           <div style="font-size:12.5px; color:var(--text-secondary);">Réponse d'Agent One : "${escapeHtml(feedback.actualReply)}"</div>
           <div style="font-size:12.5px;">${feedback.expectedReplies.map(r => `Attendu : "${escapeHtml(r)}"`).join('<br>')}</div>
@@ -359,5 +362,12 @@ async function openIssues() {
 
 async function toggleIssue(id, status) {
   await apiCall('/admin/api/labo/feedback/' + id + '/toggle', { body: JSON.stringify({ status }) });
+  openIssues();
+}
+
+async function deleteIssue(id) {
+  if (!confirm('Supprimer ce signalement ? Cette action est irréversible.')) return;
+  await apiCall('/admin/api/labo/feedback/' + id + '/delete', { method: 'POST' });
+  showToast('✓ Signalement supprimé');
   openIssues();
 }
