@@ -232,3 +232,20 @@ export const agentRules = pgTable("agent_rules", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Pendant de laboFeedback pour le "bon" côté : un message qu'Agent One a
+// écrit et que Fenn valide comme parfait dans son contexte précis (client,
+// sujet, avancée de la conversation). Contrairement à un signalement, il n'y
+// a rien à corriger — juste un exemple à conserver/renforcer, digéré dans le
+// même règlement condensé (voir ruleConsolidationService.ts) avec un cadrage
+// positif ("continue à faire ça") plutôt que "évite ça".
+export const agentPraise = pgTable("agent_praise", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  artisanId: uuid("artisan_id")
+    .notNull()
+    .references(() => artisans.id, { onDelete: "cascade" }),
+  conversationExcerpt: text("conversation_excerpt").notNull(),
+  likedReply: text("liked_reply").notNull(),
+  consolidatedAt: timestamp("consolidated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

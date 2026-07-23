@@ -11,6 +11,7 @@ import {
   listClientsForLabo,
   listLaboFeedback,
   removeLaboFeedback,
+  reportAgentPraise,
   reportLaboFeedback,
   toggleClientTask,
   toggleLaboFeedbackStatus,
@@ -307,6 +308,24 @@ router.post(
       reasoning: reasoning.trim(),
     });
     res.json(feedback);
+  }),
+);
+
+/** "Like" sur une réponse jugée parfaite dans son contexte — pendant du signalement, en positif. */
+router.post(
+  "/api/labo/praise",
+  asyncHandler(async (req, res) => {
+    const { artisanId, conversationExcerpt, likedReply } = req.body ?? {};
+    if (!artisanId || typeof likedReply !== "string" || !likedReply.trim()) {
+      res.status(400).json({ error: "missing_fields" });
+      return;
+    }
+    const praise = await reportAgentPraise({
+      artisanId,
+      conversationExcerpt: typeof conversationExcerpt === "string" ? conversationExcerpt : "",
+      likedReply: likedReply.trim(),
+    });
+    res.json(praise);
   }),
 );
 

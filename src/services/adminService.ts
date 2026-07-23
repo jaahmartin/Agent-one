@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { appointments, artisans, clientNotes, clientTasks, leads, revenues } from "../db/schema";
+import { insertAgentPraise } from "../db/repositories/agentPraiseRepo";
 import {
   deleteLaboFeedback,
   insertLaboFeedback,
@@ -200,6 +201,17 @@ export async function reportLaboFeedback(params: Parameters<typeof insertLaboFee
   const feedback = await insertLaboFeedback(params);
   await consolidateAgentRules();
   return feedback;
+}
+
+/**
+ * Pendant positif de reportLaboFeedback ci-dessus : enregistre une réponse
+ * félicitée ("parfaite dans ce contexte") puis digère aussitôt dans le même
+ * règlement condensé, avec un cadrage "à conserver" plutôt que "à éviter".
+ */
+export async function reportAgentPraise(params: Parameters<typeof insertAgentPraise>[0]) {
+  const praise = await insertAgentPraise(params);
+  await consolidateAgentRules();
+  return praise;
 }
 
 export const listLaboFeedback = listLaboFeedbackWithArtisan;

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../config/env";
+import { listUnconsolidatedPraise, markPraiseConsolidated } from "../db/repositories/agentPraiseRepo";
 import { getLatestAgentRules, insertAgentRules } from "../db/repositories/agentRulesRepo";
 import { listUnconsolidatedFeedback, markFeedbackConsolidated } from "../db/repositories/laboFeedbackRepo";
 
@@ -14,14 +15,20 @@ function getClient() {
 
 const CONSOLIDATION_SYSTEM_PROMPT =
   "Tu maintiens le règlement interne d'Agent One, l'assistant SMS partagé par tous les artisans clients " +
-  "de Fenn (plombiers, électriciens...). On te donne le règlement actuel (peut être vide) et de nouvelles " +
-  "corrections concrètes signalées par Fenn suite à de mauvaises réponses d'Agent One. Ta tâche : produire " +
-  "une version mise à jour et complète du règlement, sous forme de liste à puces courtes et actionnables.\n\n" +
+  "de Fenn (plombiers, électriciens...). On te donne le règlement actuel (peut être vide), puis deux types " +
+  "d'entrées possibles : des corrections (réponses jugées mauvaises par Fenn, à éviter à l'avenir) et des " +
+  "réponses félicitées (réponses jugées parfaites par Fenn dans leur contexte, à conserver/renforcer). Ta " +
+  "tâche : produire une version mise à jour et complète du règlement, sous forme de liste à puces courtes " +
+  "et actionnables.\n\n" +
   "Règles impératives :\n" +
-  "- Généralise chaque correction : n'y laisse jamais le nom d'un artisan précis ni un métier/secteur " +
+  "- Généralise chaque entrée : n'y laisse jamais le nom d'un artisan précis ni un métier/secteur " +
   "particulier (ex: pas de \"nettoyage de véhicule\"), sauf si la règle porte explicitement sur une " +
   "distinction de métier générale (ex: urgence électrique vs urgence plomberie) — le règlement s'applique à " +
   "tous les artisans, quel que soit leur métier.\n" +
+  "- Pour une correction : ajoute ou renforce une règle qui l'évite à l'avenir.\n" +
+  "- Pour une réponse félicitée : n'ajoute une nouvelle règle que si elle révèle un comportement pas encore " +
+  "couvert par le règlement actuel ; si le comportement est déjà couvert, laisse le règlement inchangé sur ce " +
+  "point plutôt que de dupliquer une règle existante.\n" +
   "- Fusionne les règles nouvelles qui recoupent des règles existantes au lieu de les dupliquer.\n" +
   "- Reste concis : vise 20 règles maximum. Si tu dépasses, fusionne ou supprime les moins utiles.\n" +
   "- Réponds uniquement avec la liste à puces (une règle par ligne, préfixée par \"- \"), rien d'autre : " +
@@ -41,30 +48,48 @@ function formatPendingFeedback(entries: Awaited<ReturnType<typeof listUnconsolid
     .join("\n\n");
 }
 
+function formatPendingPraise(entries: Awaited<ReturnType<typeof listUnconsolidatedPraise>>): string {
+  return entries
+    .map((p, i) => {
+      return (
+        `${i + 1}. Contexte : ${p.conversationExcerpt || "(premier message, pas encore de contexte)"}\n` +
+        `   Réponse validée comme parfaite dans ce contexte : "${p.likedReply}"`
+      );
+    })
+    .join("\n\n");
+}
+
 /**
- * Digère les corrections du labo pas encore traitées dans le règlement
- * condensé — appelée automatiquement après chaque nouveau signalement (voir
- * adminService.ts), qu'il vienne de l'espace admin ou d'un ajout direct. Ne
- * fait rien s'il n'y a rien de nouveau à digérer. Ne lève jamais d'erreur :
- * un échec de consolidation ne doit jamais empêcher l'enregistrement du
- * signalement lui-même.
+ * Digère les corrections et félicitations du labo pas encore traitées dans
+ * le règlement condensé — appelée automatiquement après chaque nouveau
+ * signalement ou "like" (voir adminService.ts), qu'il vienne de l'espace
+ * admin ou d'un ajout direct. Ne fait rien s'il n'y a rien de nouveau à
+ * digérer. Ne lève jamais d'erreur : un échec de consolidation ne doit
+ * jamais empêcher l'enregistrement du signalement/like lui-même.
  */
 export async function consolidateAgentRules(): Promise<{ updated: boolean; rulesCount?: number }> {
   try {
-    const pending = await listUnconsolidatedFeedback();
-    if (pending.length === 0) return { updated: false };
+    const [pendingCorrections, pendingPraise] = await Promise.all([
+      listUnconsolidatedFeedback(),
+      listUnconsolidatedPraise(),
+    ]);
+    if (pendingCorrections.length === 0 && pendingPraise.length === 0) return { updated: false };
 
     const previous = await getLatestAgentRules();
-    const userContent =
-      `RÈGLEMENT ACTUEL :\n${previous?.content ?? "(vide, aucune règle pour l'instant)"}\n\n` +
-      `NOUVELLES CORRECTIONS À INTÉGRER :\n\n${formatPendingFeedback(pending)}`;
+    const sections = [`RÈGLEMENT ACTUEL :\n${previous?.content ?? "(vide, aucune règle pour l'instant)"}`];
+    if (pendingCorrections.length > 0) {
+      sections.push(`CORRECTIONS À INTÉGRER (à éviter à l'avenir) :\n\n${formatPendingFeedback(pendingCorrections)}`);
+    }
+    if (pendingPraise.length > 0) {
+      sections.push(`RÉPONSES FÉLICITÉES (à conserver/renforcer) :\n\n${formatPendingPraise(pendingPraise)}`);
+    }
 
     const client = getClient();
     const response = await client.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 2048,
       system: CONSOLIDATION_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userContent }],
+      messages: [{ role: "user", content: sections.join("\n\n") }],
     });
 
     const textBlock = response.content.find((block) => block.type === "text");
@@ -74,12 +99,15 @@ export async function consolidateAgentRules(): Promise<{ updated: boolean; rules
     }
 
     const newRules = await insertAgentRules(textBlock.text.trim());
-    await markFeedbackConsolidated(pending.map((f) => f.id));
+    await Promise.all([
+      markFeedbackConsolidated(pendingCorrections.map((f) => f.id)),
+      markPraiseConsolidated(pendingPraise.map((p) => p.id)),
+    ]);
 
     const rulesCount = newRules.content.split("\n").filter((line) => line.trim().startsWith("-")).length;
     return { updated: true, rulesCount };
   } catch (err) {
-    console.error("consolidateAgentRules : échec de la consolidation, signalement conservé tel quel.", err);
+    console.error("consolidateAgentRules : échec de la consolidation, signalement/like conservé tel quel.", err);
     return { updated: false };
   }
 }

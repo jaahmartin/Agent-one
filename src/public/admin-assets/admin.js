@@ -217,8 +217,36 @@ function resetLabo() {
 function appendAgentBubble(replyText, turnIndex) {
   const box = document.getElementById('chat-box');
   box.innerHTML += `<div class="bubble-row" style="justify-content:flex-end;"><div class="bubble agent">${escapeHtml(replyText)}</div></div>
+    <div class="like-link" data-turn="${turnIndex}" onclick="submitLike(${turnIndex}, this)">👍 Parfait dans ce contexte</div>
     <div class="flag-link" data-turn="${turnIndex}" onclick="openFlagForm(${turnIndex}, this)">Signaler un problème sur cette réponse</div>`;
   box.scrollTop = box.scrollHeight;
+}
+
+/**
+ * "Like" sur une réponse jugée parfaite dans son contexte exact (client,
+ * sujet, avancée de la conversation) — pendant positif du signalement :
+ * envoyé immédiatement, sans formulaire, et digéré aussitôt côté serveur
+ * dans le règlement condensé d'Agent One (voir ruleConsolidationService.ts).
+ */
+async function submitLike(turnIndex, linkEl) {
+  linkEl.style.pointerEvents = 'none';
+  linkEl.textContent = 'Envoi en cours...';
+
+  const turn = laboTurns[turnIndex];
+  const result = await apiCall('/admin/api/labo/praise', {
+    body: JSON.stringify({
+      artisanId: laboCurrentClientId,
+      conversationExcerpt: turn.historyBefore,
+      likedReply: turn.actualReply,
+    }),
+  });
+  if (!result) {
+    linkEl.style.pointerEvents = '';
+    linkEl.textContent = '👍 Parfait dans ce contexte';
+    return;
+  }
+  linkEl.outerHTML = '<div style="font-size:11px; color:var(--positive); font-weight:600; text-align:right; margin-top:-4px; margin-bottom:2px;">✓ Agent One félicité</div>';
+  showToast('✓ Agent One félicité — ce comportement est renforcé');
 }
 
 async function sendTestMessage() {
