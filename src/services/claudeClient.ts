@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../config/env";
-import { listRecentLaboFeedback } from "../db/repositories/laboFeedbackRepo";
+import { getLatestAgentRules } from "../db/repositories/agentRulesRepo";
+import { listUnconsolidatedFeedback } from "../db/repositories/laboFeedbackRepo";
 import type { artisans } from "../db/schema";
 
 type ArtisanContext = Pick<typeof artisans.$inferSelect, "name" | "metier" | "activityDescription">;
@@ -140,57 +141,45 @@ function personalitySystemPrompt(artisan: ArtisanContext, feedbackSection: strin
 }
 
 /**
- * Corrections signalées depuis le Labo Agent One (espace admin), les plus
- * récentes en premier — transformées en exemples concrets à suivre/éviter,
- * directement dans le prompt. C'est ce qui fait qu'Agent One "apprend" des
- * signalements de Mathéo sans qu'il faille retoucher le prompt à la main
- * à chaque fois : dès qu'une correction est enregistrée, elle s'applique
- * à toutes les conversations suivantes, tous artisans confondus.
+ * Le "cerveau" appris d'Agent One, en deux couches :
+ * 1. Le règlement condensé (voir ruleConsolidationService.ts) — une liste
+ *    courte de règles générales, fusionnées à partir de toutes les
+ *    corrections signalées par Fenn dans le temps. Ne grossit jamais
+ *    indéfiniment (contrairement à empiler les exemples bruts, qui a déjà
+ *    fait planter la génération une fois le prompt trop chargé).
+ * 2. Les toutes dernières corrections pas encore digérées dans ce règlement
+ *    (normalement vide : la consolidation tourne juste après chaque
+ *    signalement — voir adminService.ts — mais ce filet de sécurité évite
+ *    de perdre une correction si une consolidation a échoué entre-temps).
  */
 async function buildFeedbackSection(): Promise<string> {
-  const rawFeedback = await listRecentLaboFeedback(30);
+  const [rules, pending] = await Promise.all([getLatestAgentRules(), listUnconsolidatedFeedback()]);
 
-  // Déduplique par contenu : un même correctif cliqué/enregistré plusieurs
-  // fois (ex: double-clic, ou clic répété faute de confirmation visible)
-  // ne doit compter qu'une fois — répéter le même texte 5-10 fois dans le
-  // prompt peut faire échouer la génération de réponse (déjà arrivé en
-  // conditions réelles), sans rien apporter de plus qu'une seule occurrence.
-  const seen = new Set<string>();
-  const feedback = rawFeedback
-    .filter((f) => {
-      const key = `${f.actualReply}|${f.reasoning}|${f.expectedReplies.join("|")}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    // Plafonné bas (8, contexte/raisons raccourcis) : un prompt système trop
-    // long/chargé de corrections a déjà fait échouer la génération en
-    // conditions réelles (le modèle "réfléchit" tellement qu'il épuise le
-    // budget de tokens avant d'écrire la réponse). Les corrections les plus
-    // récentes priment de toute façon sur les plus anciennes.
-    .slice(0, 8);
-
-  if (feedback.length === 0) return "";
+  const rulesBlock = rules
+    ? `\n\nRÈGLEMENT D'AGENT ONE (condensé à partir des corrections de Fenn, à respecter impérativement, ` +
+      `prime sur tes propres intuitions en cas de situation similaire) :\n\n${rules.content}`
+    : "";
 
   const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}...` : text);
+  const freshEntries = pending.slice(0, 5);
+  const freshBlock =
+    freshEntries.length > 0
+      ? `\n\nCORRECTIONS TOUTES RÉCENTES, PAS ENCORE INTÉGRÉES AU RÈGLEMENT CI-DESSUS (à respecter aussi) :\n\n` +
+        freshEntries
+          .map((f, i) => {
+            const excerpt = truncate(f.conversationExcerpt, 150);
+            const examples = f.expectedReplies.map((r) => `"${truncate(r, 150)}"`).join(" / ");
+            return (
+              `${i + 1}. Contexte : ${excerpt || "(premier message, pas encore de contexte)"}\n` +
+              `   Réponse à NE PAS reproduire : "${truncate(f.actualReply, 150)}"\n` +
+              `   Bonnes réponses possibles : ${examples}\n` +
+              `   Pourquoi : ${truncate(f.reasoning, 200)}`
+            );
+          })
+          .join("\n\n")
+      : "";
 
-  const entries = feedback
-    .map((f, i) => {
-      const excerpt = truncate(f.conversationExcerpt, 150);
-      const examples = f.expectedReplies.map((r) => `"${truncate(r, 150)}"`).join(" / ");
-      return (
-        `${i + 1}. Contexte : ${excerpt || "(premier message, pas encore de contexte)"}\n` +
-        `   Réponse à NE PAS reproduire : "${truncate(f.actualReply, 150)}"\n` +
-        `   Bonnes réponses possibles pour ce genre de cas : ${examples}\n` +
-        `   Pourquoi : ${truncate(f.reasoning, 200)}`
-      );
-    })
-    .join("\n\n");
-
-  return (
-    `\n\nCORRECTIONS DÉJÀ SIGNALÉES PAR FENN (à respecter impérativement, elles priment sur tes propres ` +
-    `intuitions en cas de situation similaire) :\n\n${entries}`
-  );
+  return rulesBlock + freshBlock;
 }
 
 /**

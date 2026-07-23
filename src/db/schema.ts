@@ -212,5 +212,23 @@ export const laboFeedback = pgTable("labo_feedback", {
   expectedReplies: jsonb("expected_replies").$type<string[]>().notNull(),
   reasoning: text("reasoning").notNull(),
   status: text("status").notNull().default("ouvert"),
+  // Renseigné quand ce signalement a été digéré dans le "règlement" condensé
+  // (voir agentRules ci-dessous) — évite de le retraiter à chaque
+  // consolidation et distingue les corrections "toutes fraîches" pas encore
+  // fondues dans les règles générales.
+  consolidatedAt: timestamp("consolidated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// "Règlement" condensé d'Agent One : au lieu d'empiler indéfiniment les
+// exemples bruts signalés (ce qui a déjà fait planter composeReply une fois
+// le prompt trop chargé — voir claudeClient.ts), on les fait périodiquement
+// fusionner par Claude en une liste courte de règles générales. Chaque ligne
+// insérée ici est une version complète et à jour du règlement (pas un delta)
+// — composeReply() utilise toujours la plus récente. Historique conservé
+// pour pouvoir revenir en arrière si une consolidation part de travers.
+export const agentRules = pgTable("agent_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

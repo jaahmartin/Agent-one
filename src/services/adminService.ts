@@ -8,6 +8,7 @@ import {
   listLaboFeedbackWithArtisan,
   updateLaboFeedbackStatus,
 } from "../db/repositories/laboFeedbackRepo";
+import { consolidateAgentRules } from "./ruleConsolidationService";
 
 // Toutes les requêtes ci-dessous tournent volontairement sur la connexion
 // d'administration par défaut (jamais withArtisanScope) : l'espace admin a
@@ -189,7 +190,18 @@ export async function listClientsForLabo() {
     .orderBy(artisans.name);
 }
 
-export const reportLaboFeedback = insertLaboFeedback;
+/**
+ * Enregistre un signalement puis digère aussitôt les corrections en attente
+ * dans le règlement condensé (voir ruleConsolidationService.ts) — c'est ce
+ * qui fait qu'Agent One "apprend" sans jamais accumuler indéfiniment
+ * d'exemples bruts dans le prompt de composeReply().
+ */
+export async function reportLaboFeedback(params: Parameters<typeof insertLaboFeedback>[0]) {
+  const feedback = await insertLaboFeedback(params);
+  await consolidateAgentRules();
+  return feedback;
+}
+
 export const listLaboFeedback = listLaboFeedbackWithArtisan;
 export const toggleLaboFeedbackStatus = updateLaboFeedbackStatus;
 export const removeLaboFeedback = deleteLaboFeedback;

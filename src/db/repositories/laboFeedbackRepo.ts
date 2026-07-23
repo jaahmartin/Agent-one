@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "../client";
 import { artisans, laboFeedback } from "../schema";
 
@@ -41,4 +41,24 @@ export async function updateLaboFeedbackStatus(id: string, status: "ouvert" | "r
 export async function deleteLaboFeedback(id: string) {
   const db = getDb();
   await db.delete(laboFeedback).where(eq(laboFeedback.id, id));
+}
+
+/**
+ * Corrections pas encore fondues dans le règlement condensé (voir
+ * ruleConsolidationService.ts) — c'est cette liste qu'une consolidation
+ * traite, puis marque via markFeedbackConsolidated().
+ */
+export async function listUnconsolidatedFeedback() {
+  const db = getDb();
+  return db
+    .select()
+    .from(laboFeedback)
+    .where(isNull(laboFeedback.consolidatedAt))
+    .orderBy(laboFeedback.createdAt);
+}
+
+export async function markFeedbackConsolidated(ids: string[]) {
+  if (ids.length === 0) return;
+  const db = getDb();
+  await db.update(laboFeedback).set({ consolidatedAt: new Date() }).where(inArray(laboFeedback.id, ids));
 }
